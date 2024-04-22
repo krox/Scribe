@@ -1,4 +1,4 @@
-#include "scribe/verify_json.h"
+#include "scribe/validate_json.h"
 
 #include "nlohmann/json.hpp"
 #include <fstream>
@@ -6,18 +6,18 @@
 namespace scribe {
 namespace {
 
-bool verify_json(nlohmann::json const &j, Schema const &s);
+bool validate_json(nlohmann::json const &j, Schema const &s);
 
-bool verify_json(nlohmann::json const &, NoneSchema const &) { return false; }
+bool validate_json(nlohmann::json const &, NoneSchema const &) { return false; }
 
-bool verify_json(nlohmann::json const &, AnySchema const &) { return true; }
+bool validate_json(nlohmann::json const &, AnySchema const &) { return true; }
 
-bool verify_json(nlohmann::json const &j, BooleanSchema const &)
+bool validate_json(nlohmann::json const &j, BooleanSchema const &)
 {
     return j.is_boolean();
 }
 
-bool verify_json(nlohmann::json const &j, NumberSchema const &s)
+bool validate_json(nlohmann::json const &j, NumberSchema const &s)
 {
     switch (s.type)
     {
@@ -60,12 +60,12 @@ bool verify_json(nlohmann::json const &j, NumberSchema const &s)
     assert(false);
 }
 
-bool verify_json(nlohmann::json const &j, StringSchema const &)
+bool validate_json(nlohmann::json const &j, StringSchema const &)
 {
     return j.is_string();
 }
 
-bool verify_json(nlohmann::json const &j, ArraySchema const &s)
+bool validate_json(nlohmann::json const &j, ArraySchema const &s)
 {
     if (!j.is_array())
         return false;
@@ -73,13 +73,13 @@ bool verify_json(nlohmann::json const &j, ArraySchema const &s)
     // actually supported
     for (auto const &elem : j)
     {
-        if (!verify_json(elem, s.elements))
+        if (!validate_json(elem, s.elements))
             return false;
     }
     return true;
 }
 
-bool verify_json(nlohmann::json const &j, DictSchema const &s)
+bool validate_json(nlohmann::json const &j, DictSchema const &s)
 {
     if (!j.is_object())
         return false;
@@ -94,7 +94,7 @@ bool verify_json(nlohmann::json const &j, DictSchema const &s)
             if (key == s.items[i].key)
             {
                 found[i] = true;
-                if (!verify_json(value, s.items[i].schema))
+                if (!validate_json(value, s.items[i].schema))
                     return false;
 
                 goto next_item;
@@ -115,19 +115,20 @@ bool verify_json(nlohmann::json const &j, DictSchema const &s)
     return true;
 }
 
-bool verify_json(nlohmann::json const &j, Schema const &s)
+bool validate_json(nlohmann::json const &j, Schema const &s)
 {
-    return s.visit<bool>([&](auto const &s) { return verify_json(j, s); });
+    return s.visit<bool>([&](auto const &s) { return validate_json(j, s); });
 }
 
 } // namespace
 
-bool verify_json_file(std::string_view filename, Schema const &s, bool verbose)
+bool validate_json_file(std::string_view filename, Schema const &s,
+                        bool verbose)
 {
     (void)verbose;
     auto j = nlohmann::json::parse(std::ifstream(std::string(filename)),
                                    nullptr, true, true);
-    return verify_json(j, s);
+    return validate_json(j, s);
 }
 
 } // namespace scribe

@@ -6,7 +6,7 @@
 namespace scribe {
 
 // returns true if j follows the schema s
-bool verify_json_file(std::string_view filename, Schema const &s,
-                      bool verbose = false);
+bool validate_json_file(std::string_view filename, Schema const &s,
+                        bool verbose = false);
 
 } // namespace scribe

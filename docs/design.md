@@ -35,7 +35,7 @@ Scribe is a general-purpose serialization library with a focus on large numerica
 * `Scribe` can be used in multiple modes:
   * As a command line tool. For example
     ```bash
-    scribe verify schema.json data.hdf5
+    scribe validate schema.json data.hdf5
     ```
     checks whether a data-file adheres to a given schema
   * As a C++ library:
@@ -67,7 +67,7 @@ Scribe is a general-purpose serialization library with a focus on large numerica
 ## Similar projects / why this cannot be done with X
 
 ### Scribe is not json-schema
-* `json-schema` is purely for verification, whereas `Scribe` also does data read/write
+* `json-schema` is purely for validation, whereas `Scribe` also does data read/write
 * `json-schema` can only describe json data, not more low-level formats. For example it cannot reasonably distinguish between single- and double-precision floating point numbers.
 * `json-schema` lacks an efficient understanding of multi-dimensional homogeneous numerical arrays, which are crucial to our usecases in scientific computations.
 
@@ -206,7 +206,7 @@ This is a schema that can be one of several sub-schemas.
     ]
 }
 ```
-Restriction: For now, we require all sub-variants to be distinguished by their `type` field, in order to keep verification simple. (Sidenote: arbitrary variants together with recursive schemas could make verification undecidable, or at least exponentially hard. I think.)
+Restriction: For now, we require all sub-variants to be distinguished by their `type` field, in order to keep validation simple. (Sidenote: arbitrary variants together with recursive schemas could make validation undecidable, or at least exponentially hard. I think.)
 
 ## Mapping types between environments
 
@@ -371,11 +371,11 @@ Conceptually, a perambulator is 7 dimensional, but it is stored in multiple file
 This is a rough todo-list what we need to make this project slightly useful to some. The goal is to have something presentable as soon as possible in order to look for potential users outside our immediate science community. Also, this list should be transformed to somethink like a kanban board.
 
 1) Write the `Schema` class, which itself can be read from (and written to?) a json file.
-2) Write a schema for the schemas, in the form of a json-schema. Then find a verification library that can check it for any given schema.
+2) Write a schema for the schemas, in the form of a json-schema. Then find a validation library that can check it for any given schema.
 3) Write the `Tome` class. This is similar to the `nlohmann::json` type. Also discuss whether we are okay calling is "Tome". Could go with something neutral like "Object" instead.
-4) Write a verification function for `json` files. As a first pass, a function like
+4) Write a validation function for `json` files. As a first pass, a function like
    ```C++
-   bool verify_json(nlohmann::json const&, Schema const&);
+   bool validate_json(nlohmann::json const&, Schema const&);
    ```
    is sufficient, though an implementation based on nlohmann's SAX parser could be more efficient in case of big datasets.
 5) Write a json reader
@@ -383,9 +383,9 @@ This is a rough todo-list what we need to make this project slightly useful to s
    Tome read_json(std::string_view filename, Schema const&);
    ```
    This should definitely be based on nlohmann's SAX parser, i.e. circumventing the `nlohmann::json` type itself.
-6) HDF5 verification.
+6) HDF5 validation.
    ```C++
-   bool verify_hdf5(std::string_view filename, Schema const&);
+   bool validate_hdf5(std::string_view filename, Schema const&);
    ```
 7) Of course this should be done without reading any actual data from the hdf5 file, only the meta-data.
 8) HDF5 reader
@@ -395,8 +395,8 @@ This is a rough todo-list what we need to make this project slightly useful to s
 9) C++ code generation. This is a huge item, should be done after the dynamic `Tome` based readers are done, because at that point, code generation is effectively just an optimization.
 10) Tie most of it together with a command-line utility:
     ```bash
-    scribe verify myschema.json # check that myschema.json is valid itself
-    scribe verify mydata.hdf5 myschema.json # just calls the "verify_{hdf5,json}(...)" function
+    scribe validate myschema.json # check that myschema.json is valid itself
+    scribe validate mydata.hdf5 myschema.json # just calls the "validate_{hdf5,json}(...)" function
     scribe codegen myschem.json # C++ code generation
     ```
 
@@ -406,8 +406,8 @@ Minor points that could be discussed in a future meeting (alternatively, actuall
 * How strict should our reader be?
   * A missing (but non-optional) key could be silently interpreted as an empty array/dict, provided this adheres to all other constraints
   * Is a json `null` value the same as a missing key?
-  * Should verification fail if the only "error" is a wrong chunk_size?
-  * Proposal: have a strict and non-strict mode. Verification defaults to strict, reading to non-strict.
+  * Should validation fail if the only "error" is a wrong chunk_size?
+  * Proposal: have a strict and non-strict mode. Validation defaults to strict, reading to non-strict.
 * What exactly is the default mapping to hdf5 in regards to attribute vs group vs dataset? Proposal:
   * dict-values that are single numbers, booleans, string are attributes (and not datasets)
   * arrays with non-numeric element types are stored in groups, one level per dimension.
@@ -488,7 +488,7 @@ The simplest case (only dict-keys, no wildcards) should be implemented before ve
 ### Python bindings
 
 We could think about three levels of python support:
-1) Binding for the `Schema` class, which allows verification of data files.
+1) Binding for the `Schema` class, which allows validation of data files.
 2) Binding for the `Tome` class, which allows reading and writing of data files.
 3) A proper "Python Codegen" that makes a Schema into a python class at runtime.
 
@@ -525,5 +525,7 @@ where `schema` describes the full dataset, and not a single file. Some points of
 Personally, I enjoy this direction of thought. it seems like we could draw some cool category-theory-style diagrams between `datasets`, `schemas` and `locations`, each with their own `project` function. But practically speaking, making all of this usable might be a multi-year research project in itself, so we reasonably decided against it.
 
 Open question: Is there a well-defined special case of multi-file datasets that could be reasonably implemented on its own?
+
+Idea: not multi-file, but splitting one logical nd-array along one axis along multiple datasets/groups inside a HDF5 file could be done quite reasonably inside the format-specific traits.
 
 
