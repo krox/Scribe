@@ -31,7 +31,7 @@ int main(int argc, char **argv)
     if (validate_command->parsed())
     {
         auto schema = scribe::Schema::from_file(schema_filename);
-        auto result = validate_json_file(data_filename, schema, verbose);
+        auto result = validate_json_file(data_filename, schema /*, verbose*/);
         if (result)
         {
             fmt::print("validation OK\n");

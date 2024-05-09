@@ -1,5 +1,6 @@
 #pragma once
 
+#include "fmt/format.h"
 #include "scribe/schema.h"
 #include <cassert>
 #include <complex>
@@ -59,7 +60,7 @@ class Tome
         if (auto *value = std::get_if<T>(&data_); value)
             return *value;
         throw TomeTypeError(
-            std::format("Tome is not of type '{}'", typeid(T).name()));
+            fmt::format("Tome is not of type '{}'", typeid(T).name()));
     }
 
     template <class T> T const &as() const
@@ -67,7 +68,7 @@ class Tome
         if (auto *value = std::get_if<T>(&data_); value)
             return *value;
         throw TomeTypeError(
-            std::format("Tome is not of type '{}'", typeid(T).name()));
+            fmt::format("Tome is not of type '{}'", typeid(T).name()));
     }
 
   public:
@@ -116,10 +117,10 @@ class Tome
     dict_type &as_dict() { return as<dict_type>(); }
 
     // get contained data (const version)
-    boolean_type const &as_boolean() const { return as<boolean_type>(); }
-    integer_type const &as_integer() const { return as<integer_type>(); }
-    real_type const &as_real() const { return as<real_type>(); }
-    complex_type const &as_complex() const { return as<complex_type>(); }
+    boolean_type as_boolean() const { return as<boolean_type>(); }
+    integer_type as_integer() const { return as<integer_type>(); }
+    real_type as_real() const { return as<real_type>(); }
+    complex_type as_complex() const { return as<complex_type>(); }
     string_type const &as_string() const { return as<string_type>(); }
     array_type const &as_array() const { return as<array_type>(); }
     dict_type const &as_dict() const { return as<dict_type>(); }
@@ -168,6 +169,11 @@ class Tome
     // array-like access
     Tome &operator[](size_t i) { return as_array().at(i); }
     Tome const &operator[](size_t i) const { return as_array().at(i); }
+
+    // read from a file
+    static Tome read_file(std::string_view filename, Schema const &schema);
+    static Tome read_json_file(std::string_view filename, Schema const &schema);
+    static Tome read_json_string(std::string_view json, Schema const &schema);
 };
 
 template <> struct TomeSerializer<bool>

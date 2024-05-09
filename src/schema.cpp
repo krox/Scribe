@@ -129,4 +129,112 @@ Schema Schema::from_json(nlohmann::json const &j)
 
     return Schema(std::move(s));
 }
+
+bool NumberSchema::validate(int64_t value) const
+{
+    switch (type)
+    {
+    case NumType::INT8:
+        return value >= std::numeric_limits<int8_t>::min() &&
+               value <= std::numeric_limits<int8_t>::max();
+    case NumType::INT16:
+        return value >= std::numeric_limits<int16_t>::min() &&
+               value <= std::numeric_limits<int16_t>::max();
+    case NumType::INT32:
+        return value >= std::numeric_limits<int32_t>::min() &&
+               value <= std::numeric_limits<int32_t>::max();
+    case NumType::INT64:
+        return true;
+    case NumType::UINT8:
+        return value >= 0 && value <= std::numeric_limits<uint8_t>::max();
+    case NumType::UINT16:
+        return value >= 0 && value <= std::numeric_limits<uint16_t>::max();
+    case NumType::UINT32:
+        return value >= 0 && value <= std::numeric_limits<uint32_t>::max();
+    case NumType::UINT64:
+        return value >= 0;
+    case NumType::FLOAT32:
+    case NumType::FLOAT64:
+    case NumType::COMPLEX64:
+    case NumType::COMPLEX128:
+        return true;
+
+    default:
+        assert(false);
+    }
+}
+
+bool NumberSchema::validate(uint64_t value) const
+{
+    switch (type)
+    {
+    case NumType::INT8:
+    case NumType::INT16:
+    case NumType::INT32:
+    case NumType::INT64:
+        return true;
+    case NumType::UINT8:
+        return value <= std::numeric_limits<uint8_t>::max();
+    case NumType::UINT16:
+        return value <= std::numeric_limits<uint16_t>::max();
+    case NumType::UINT32:
+        return value <= std::numeric_limits<uint32_t>::max();
+    case NumType::UINT64:
+        return true;
+    case NumType::FLOAT32:
+    case NumType::FLOAT64:
+    case NumType::COMPLEX64:
+    case NumType::COMPLEX128:
+        return true;
+    default:
+        assert(false);
+    }
+}
+
+bool NumberSchema::validate(double) const
+{
+    switch (type)
+    {
+    case NumType::INT8:
+    case NumType::INT16:
+    case NumType::INT32:
+    case NumType::INT64:
+    case NumType::UINT8:
+    case NumType::UINT16:
+    case NumType::UINT32:
+    case NumType::UINT64:
+        return false;
+    case NumType::FLOAT32:
+    case NumType::FLOAT64:
+    case NumType::COMPLEX64:
+    case NumType::COMPLEX128:
+        return true;
+    default:
+        assert(false);
+    }
+}
+
+bool NumberSchema::validate(double, double) const
+{
+    switch (type)
+    {
+    case NumType::INT8:
+    case NumType::INT16:
+    case NumType::INT32:
+    case NumType::INT64:
+    case NumType::UINT8:
+    case NumType::UINT16:
+    case NumType::UINT32:
+    case NumType::UINT64:
+    case NumType::FLOAT32:
+    case NumType::FLOAT64:
+        return false;
+    case NumType::COMPLEX64:
+    case NumType::COMPLEX128:
+        return true;
+    default:
+        assert(false);
+    }
+}
+
 } // namespace scribe

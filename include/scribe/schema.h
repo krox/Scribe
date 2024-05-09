@@ -111,6 +111,12 @@ class NumberSchema
   public:
     NumType type;
     // TODO: min/max
+
+    // validate a integer/real/complex number against the schema
+    bool validate(int64_t) const;
+    bool validate(uint64_t) const;
+    bool validate(double) const;
+    bool validate(double, double) const;
 };
 
 class StringSchema
@@ -151,7 +157,7 @@ class SchemaImpl
 
 template <class R, class Visitor> R Schema::visit(Visitor &&vis) const
 {
-    return std::visit(std::forward<Visitor>(vis), impl().schema_);
+    return std::visit<R>(std::forward<Visitor>(vis), impl().schema_);
 }
 
 } // namespace scribe

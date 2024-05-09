@@ -3,6 +3,7 @@
 #include "fmt/format.h"
 #include "scribe/tome.h"
 
+using scribe::Schema;
 using scribe::Tome;
 
 TEST_CASE("scribe::Tome as generic type", "[tome]")
@@ -47,4 +48,38 @@ TEST_CASE("scribe::Tome as generic type", "[tome]")
         REQUIRE(tome["foo"]["bar"].is_integer());
         REQUIRE(tome["foo"]["bar"].get<int>() == 42);
     }
+}
+
+TEST_CASE("reading a tome from json", "[tome]")
+{
+    auto schema = Schema::from_json(R"(
+    {
+        "type": "dict",
+        "items": [
+            {
+                "key": "foo",
+                "type": "dict",
+                "items": [
+                    {
+                        "key": "bar",
+                        "type": "int32"
+                    }
+                ]
+            }
+            ]
+    }
+    )"_json);
+
+    std::string j = R"(
+    {
+        "foo": {
+            "bar": 42
+        }
+    }
+    )";
+
+    auto tome = Tome::read_json_string(j, schema);
+    REQUIRE(tome.is_dict());
+    REQUIRE(tome["foo"].is_dict());
+    REQUIRE(tome["foo"]["bar"].is_integer());
 }
