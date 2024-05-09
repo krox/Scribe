@@ -78,8 +78,18 @@ TEST_CASE("reading a tome from json", "[tome]")
     }
     )";
 
+    std::string j2 = R"(
+    {
+        "foo": {
+            "bar": "42"
+        }
+    }
+    )";
+
     auto tome = Tome::read_json_string(j, schema);
     REQUIRE(tome.is_dict());
     REQUIRE(tome["foo"].is_dict());
     REQUIRE(tome["foo"]["bar"].is_integer());
+
+    REQUIRE_THROWS(Tome::read_json_string(j2, schema));
 }
