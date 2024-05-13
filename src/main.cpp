@@ -1,6 +1,7 @@
 #include "CLI/CLI.hpp"
 #include "fmt/format.h"
 #include "nlohmann/json.hpp"
+#include "scribe/codegen.h"
 #include "scribe/schema.h"
 #include "scribe/validate_json.h"
 #include <cassert>
@@ -26,6 +27,11 @@ int main(int argc, char **argv)
         ->required();
     validate_command->add_flag("--verbose,-v", verbose, "verbose output");
 
+    auto codegen_command =
+        app.add_subcommand("codegen", "generate C++ code from a schema");
+    codegen_command->add_option("schema", schema_filename, "schema file")
+        ->required();
+
     CLI11_PARSE(app, argc, argv);
 
     if (validate_command->parsed())
@@ -42,6 +48,12 @@ int main(int argc, char **argv)
             fmt::print("validation FAILED\n");
             return 1;
         }
+    }
+    else if (codegen_command->parsed())
+    {
+        auto schema = scribe::Schema::from_file(schema_filename);
+        fmt::print("{}\n", generate_cpp(schema));
+        return 0;
     }
     else
     {

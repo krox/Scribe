@@ -8,7 +8,7 @@ CPMAddPackage("gh:CLIUtils/CLI11@2.4.1")
 CPMAddPackage("gh:nlohmann/json@3.11.3")
 
 # main library
-add_library(libscribe src/read_json.cpp src/schema.cpp src/tome.cpp src/validate_json.cpp)
+add_library(libscribe src/codegen.cpp src/read_json.cpp src/schema.cpp src/tome.cpp src/validate_json.cpp)
 target_compile_features(libscribe PUBLIC cxx_std_20)
 target_include_directories(libscribe PUBLIC include)
 target_link_libraries(libscribe PUBLIC fmt::fmt nlohmann_json::nlohmann_json)
@@ -32,7 +32,7 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
     add_compile_options(-fsanitize=address -fno-omit-frame-pointer)
     add_link_options(-fsanitize=address)
 
-    add_executable(tests tests/tome.cpp)
+    add_executable(tests tests/tome.cpp tests/codegen.cpp)
     target_compile_features(tests PRIVATE cxx_std_20)
     target_link_libraries(tests PRIVATE Catch2::Catch2WithMain libscribe)
     target_compile_options(tests PUBLIC -Wall -Wextra -Werror -g)

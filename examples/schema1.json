@@ -1,0 +1,49 @@
+{
+    "schema_name": "my_schema",
+    "schema_description": "My schema description",
+    "schema_version": "1.0.0",
+    "type": "dict",
+    "items": [
+        {
+            "key": "foo",
+            "type": "string"
+        },
+        {
+            "key": "bar",
+            "type": "int64",
+            "optional": true
+        },
+        {
+            "key": "baz",
+            "type": "array",
+            "elements": {
+                "type": "float64"
+            }
+        },
+        {
+            "key": "nested_array",
+            "type": "array",
+            "elements": {
+                "type": "array",
+                "elements": {
+                    "type": "string"
+                }
+            }
+        },
+        {
+            "key": "nested_dict",
+            "type": "dict",
+            "items": [
+                {
+                    "key": "a_string",
+                    "type": "string"
+                },
+                {
+                    "key": "a_number",
+                    "type": "complex128",
+                    "optional": true
+                }
+            ]
+        }
+    ]
+}

@@ -92,6 +92,8 @@ class Schema
     }
 
     template <class R = void, class Visitor> R visit(Visitor &&vis) const;
+
+    std::string_view name() const;
 };
 
 // compatibility with nlohmann::json '.get' method
@@ -159,5 +161,7 @@ template <class R, class Visitor> R Schema::visit(Visitor &&vis) const
 {
     return std::visit<R>(std::forward<Visitor>(vis), impl().schema_);
 }
+
+inline std::string_view Schema::name() const { return impl().metadata_.name; }
 
 } // namespace scribe
