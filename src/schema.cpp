@@ -160,7 +160,7 @@ bool NumberSchema::validate(int64_t value) const
         return true;
 
     default:
-        assert(false);
+        throw std::runtime_error("invalid NumType");
     }
 }
 
@@ -187,7 +187,7 @@ bool NumberSchema::validate(uint64_t value) const
     case NumType::COMPLEX128:
         return true;
     default:
-        assert(false);
+        throw std::runtime_error("invalid NumType");
     }
 }
 
@@ -210,7 +210,7 @@ bool NumberSchema::validate(double) const
     case NumType::COMPLEX128:
         return true;
     default:
-        assert(false);
+        throw std::runtime_error("invalid NumType");
     }
 }
 
@@ -233,7 +233,7 @@ bool NumberSchema::validate(double, double) const
     case NumType::COMPLEX128:
         return true;
     default:
-        assert(false);
+        throw std::runtime_error("invalid NumType");
     }
 }
 

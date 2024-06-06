@@ -28,12 +28,12 @@ inline std::string Codegen::get_type(Schema const &schema)
 
 inline std::string Codegen::get_type(std::string_view, NoneSchema const &)
 {
-    assert(false);
+    throw std::runtime_error("cannot generate 'None' type");
 }
 
 inline std::string Codegen::get_type(std::string_view, AnySchema const &)
 {
-    assert(false);
+    throw std::runtime_error("'Any' type not implemented in codegen");
 }
 
 inline std::string Codegen::get_type(std::string_view, BooleanSchema const &)
@@ -71,7 +71,7 @@ inline std::string Codegen::get_type(std::string_view,
     case NumType::COMPLEX128:
         return "std::complex<double>";
     default:
-        assert(false);
+        throw std::runtime_error("invalid NumType");
     }
 }
 
