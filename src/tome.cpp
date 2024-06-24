@@ -19,10 +19,7 @@ Tome Tome::read_json_file(std::string_view filename, Schema const &schema)
 Tome Tome::read_json_string(std::string_view json, Schema const &schema)
 {
     Tome tome;
-    bool ok = read_json(&tome, nlohmann::json::parse(json, nullptr, true, true),
-                        schema);
-    if (!ok)
-        throw std::runtime_error("json does not follow schema");
+    read_json(&tome, nlohmann::json::parse(json, nullptr, true, true), schema);
     return tome;
 }
 

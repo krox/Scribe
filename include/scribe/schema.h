@@ -10,6 +10,23 @@
 
 namespace scribe {
 
+struct ScribeError : std::runtime_error
+{
+    using std::runtime_error::runtime_error;
+};
+
+// thrown when a data file/object does not follow the expected schema
+struct ValidationError : ScribeError
+{
+    using ScribeError::ScribeError;
+};
+
+// thrown when a data file/object cannot be read
+struct ReadError : ScribeError
+{
+    using ScribeError::ScribeError;
+};
+
 // helper for std::visit
 template <class... Ts> struct overloaded : Ts...
 {

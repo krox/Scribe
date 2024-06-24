@@ -6,7 +6,9 @@
 
 namespace scribe {
 
-// returns true if j follows the schema s
-bool read_json(Tome *, nlohmann::json const &, Schema const &);
+// validates and reads a JSON object according to the given schema
+//   * throws ValidationError if the JSON object does not follow the schema
+//   * set tome=nullptr to only validate
+void read_json(Tome *, nlohmann::json const &, Schema const &);
 
 } // namespace scribe

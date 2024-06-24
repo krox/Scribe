@@ -5,85 +5,80 @@
 #include <fstream>
 
 namespace scribe {
-bool read_json(Tome *tome, nlohmann::json const &j, Schema const &s);
+void read_json(Tome *tome, nlohmann::json const &j, Schema const &s);
 
 namespace {
 
-bool read_json(Tome *tome, nlohmann::json const &, NoneSchema const &)
+void read_json(Tome *tome, nlohmann::json const &, NoneSchema const &)
 {
     (void)tome;
-    return false;
+    throw ValidationError("NoneSchema is never valid");
 }
 
-bool read_json(Tome *tome, nlohmann::json const &, AnySchema const &)
+void read_json(Tome *tome, nlohmann::json const &, AnySchema const &)
 {
     if (tome)
-        return false; // AnySchema is not supported for reading data
-    return true;
+        throw ReadError("AnySchema cannot be read into a Tome");
 }
 
-bool read_json(Tome *tome, nlohmann::json const &j, BooleanSchema const &)
+void read_json(Tome *tome, nlohmann::json const &j, BooleanSchema const &)
 {
     if (!j.is_boolean())
-        return false;
+        throw ValidationError("expected boolean");
 
     if (tome)
         *tome = Tome::boolean(j.get<bool>());
-    return true;
 }
 
-bool read_json(Tome *tome, nlohmann::json const &j, NumberSchema const &s)
+void read_json(Tome *tome, nlohmann::json const &j, NumberSchema const &s)
 {
     if (j.is_number_unsigned())
     {
         if (!s.validate(j.get<uint64_t>()))
-            return false;
+            throw ValidationError("unsigned integer out of range");
         if (tome)
             *tome = Tome::integer(j.get<uint64_t>());
-        return true;
     }
     else if (j.is_number_integer())
     {
         if (!s.validate(j.get<int64_t>()))
-            return false;
+            throw ValidationError("signed integer out of range");
         if (tome)
             *tome = Tome::integer(j.get<int64_t>());
-        return true;
     }
     else if (j.is_number_float())
     {
         if (!s.validate(j.get<double>()))
-            return false;
+            throw ValidationError("real number out of range");
         if (tome)
             *tome = Tome::real(j.get<double>());
-        return true;
     }
     else if (j.is_array() && j.size() == 2 && j[0].is_number_float() &&
              j[1].is_number_float())
     {
         if (!s.validate(j[0].get<double>(), j[1].get<double>()))
-            return false;
+            throw ValidationError("complex number out of range");
         if (tome)
             *tome = Tome::complex({j[0].get<double>(), j[1].get<double>()});
-        return true;
     }
     else
-        return false;
+    {
+        throw ValidationError("expected number");
+    }
 }
 
-bool read_json(Tome *tome, nlohmann::json const &j, StringSchema const &)
+void read_json(Tome *tome, nlohmann::json const &j, StringSchema const &)
 {
     if (!j.is_string())
-        return false;
+        throw ValidationError("expected string");
     if (tome)
         *tome = Tome::string(j.get<std::string>());
-    return true;
 }
 
-bool read_json(Tome *tome, nlohmann::json const &j, ArraySchema const &s)
+void read_json(Tome *tome, nlohmann::json const &j, ArraySchema const &s)
 {
     if (!j.is_array())
-        return false;
+        throw ValidationError("expected array");
     // TODO: check rank/shape. Also multi-dimensional arrays are not
     // actually supported
     if (tome)
@@ -92,17 +87,14 @@ bool read_json(Tome *tome, nlohmann::json const &j, ArraySchema const &s)
     {
         if (tome)
             tome->as_array().emplace_back();
-        if (!read_json(tome ? &tome->as_array().back() : nullptr, elem,
-                       s.elements))
-            return false;
+        read_json(tome ? &tome->as_array().back() : nullptr, elem, s.elements);
     }
-    return true;
 }
 
-bool read_json(Tome *tome, nlohmann::json const &j, DictSchema const &s)
+void read_json(Tome *tome, nlohmann::json const &j, DictSchema const &s)
 {
     if (!j.is_object())
-        return false;
+        throw ValidationError("expected object");
     if (tome)
         *tome = Tome::dict();
 
@@ -116,15 +108,14 @@ bool read_json(Tome *tome, nlohmann::json const &j, DictSchema const &s)
             if (key == s.items[i].key)
             {
                 found[i] = true;
-                if (!read_json(tome ? &tome->as_dict()[key] : nullptr, value,
-                               s.items[i].schema))
-                    return false;
+                read_json(tome ? &tome->as_dict()[key] : nullptr, value,
+                          s.items[i].schema);
 
                 goto next_item;
             }
         }
         // element (key,value) did not match against any item in the scheme
-        return false;
+        throw ValidationError("unexpected key: " + key);
     next_item:;
     }
 
@@ -132,17 +123,15 @@ bool read_json(Tome *tome, nlohmann::json const &j, DictSchema const &s)
     for (size_t i = 0; i < s.items.size(); ++i)
     {
         if (!s.items[i].optional && !found[i])
-            return false;
+            throw ValidationError("missing key: " + s.items[i].key);
     }
-
-    return true;
 }
 
 } // namespace
 
-bool read_json(Tome *tome, nlohmann::json const &j, Schema const &s)
+void read_json(Tome *tome, nlohmann::json const &j, Schema const &s)
 {
-    return s.visit<bool>([&](auto const &s) { return read_json(tome, j, s); });
+    s.visit([&](auto const &s) { read_json(tome, j, s); });
 }
 
 } // namespace scribe

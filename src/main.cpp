@@ -37,15 +37,15 @@ int main(int argc, char **argv)
     if (validate_command->parsed())
     {
         auto schema = scribe::Schema::from_file(schema_filename);
-        auto result = validate_json_file(data_filename, schema /*, verbose*/);
-        if (result)
+        try
         {
+            validate_json_file(data_filename, schema);
             fmt::print("validation OK\n");
             return 0;
         }
-        else
+        catch (scribe::ValidationError const &e)
         {
-            fmt::print("validation FAILED\n");
+            fmt::print("validation FAILED: {}\n", e.what());
             return 1;
         }
     }
