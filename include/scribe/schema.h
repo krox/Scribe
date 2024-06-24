@@ -148,8 +148,7 @@ class ArraySchema
   public:
     Schema elements;
 
-    std::optional<int> rank;
-    std::optional<std::vector<int>> shape;
+    std::optional<std::vector<int64_t>> shape;
 };
 
 struct ItemSchema

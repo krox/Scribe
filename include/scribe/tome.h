@@ -1,6 +1,7 @@
 #pragma once
 
 #include "fmt/format.h"
+#include "scribe/array.h"
 #include "scribe/schema.h"
 #include <cassert>
 #include <complex>
@@ -31,7 +32,7 @@ class Tome
     using real_type = double;
     using complex_type = std::complex<double>;
     using string_type = std::string;
-    using array_type = std::vector<Tome>;
+    using array_type = scribe::Array<Tome>;
     using dict_type = std::unordered_map<std::string, Tome>;
 
     using variant_type =
@@ -105,6 +106,11 @@ class Tome
         return Tome(direct{}, string_type{value});
     }
     static Tome array() { return Tome(direct{}, array_type{}); }
+    static Tome array(std::vector<Tome> elements, std::vector<size_t> shape)
+    {
+        return Tome(direct{},
+                    array_type{std::move(elements), std::move(shape)});
+    }
     static Tome dict() { return Tome(direct{}, dict_type{}); }
 
     // get contained data. Throws on type mismatch
@@ -167,8 +173,13 @@ class Tome
     }
 
     // array-like access
-    Tome &operator[](size_t i) { return as_array().at(i); }
-    Tome const &operator[](size_t i) const { return as_array().at(i); }
+    size_t size() const { return as_array().size(); }
+    std::span<const size_t> shape() const { return as_array().shape(); }
+    Tome &operator[](std::span<const size_t> i) { return as_array()[i]; }
+    Tome const &operator[](std::span<const size_t> i) const
+    {
+        return as_array()[i];
+    }
 
     // read from a file
     static Tome read_file(std::string_view filename, Schema const &schema);

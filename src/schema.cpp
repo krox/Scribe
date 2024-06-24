@@ -102,7 +102,6 @@ Schema Schema::from_json(nlohmann::json const &j)
     else if (type == "array")
     {
         ArraySchema array_schema;
-        get_optional(array_schema.rank, "rank");
         get_optional(array_schema.shape, "shape");
         array_schema.elements = Schema::from_json(j.at("elements"));
         s.schema_ = array_schema;

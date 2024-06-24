@@ -52,7 +52,9 @@ TEST_CASE("scribe::Tome as generic type", "[tome]")
 
 TEST_CASE("reading a tome from json", "[tome]")
 {
-    auto schema = Schema::from_json(R"(
+    SECTION("basic example")
+    {
+        auto schema = Schema::from_json(R"(
     {
         "type": "dict",
         "items": [
@@ -70,7 +72,7 @@ TEST_CASE("reading a tome from json", "[tome]")
     }
     )"_json);
 
-    std::string j = R"(
+        std::string j = R"(
     {
         "foo": {
             "bar": 42
@@ -78,7 +80,7 @@ TEST_CASE("reading a tome from json", "[tome]")
     }
     )";
 
-    std::string j2 = R"(
+        std::string j2 = R"(
     {
         "foo": {
             "bar": "42"
@@ -86,10 +88,49 @@ TEST_CASE("reading a tome from json", "[tome]")
     }
     )";
 
-    auto tome = Tome::read_json_string(j, schema);
-    REQUIRE(tome.is_dict());
-    REQUIRE(tome["foo"].is_dict());
-    REQUIRE(tome["foo"]["bar"].is_integer());
+        auto tome = Tome::read_json_string(j, schema);
+        REQUIRE(tome.is_dict());
+        REQUIRE(tome["foo"].is_dict());
+        REQUIRE(tome["foo"]["bar"].is_integer());
 
-    REQUIRE_THROWS(Tome::read_json_string(j2, schema));
+        REQUIRE_THROWS(Tome::read_json_string(j2, schema));
+    }
+
+    SECTION("multi-dim array")
+    {
+        auto schema = Schema::from_json(R"(
+        {
+            "type": "array",
+            "shape": [2, -1],
+            "elements": {
+                "type": "int32"
+            }
+        }
+        )"_json);
+
+        std::string j = R"(
+        [
+            [1, 2, 3],
+            [4, 5, 6]
+        ]
+        )";
+
+        std::string j2 = R"(
+        [
+            [1, 2, 3],
+            [4, 5]
+        ]
+        )";
+
+        auto tome = Tome::read_json_string(j, schema);
+        REQUIRE(tome.is_array());
+        REQUIRE(tome.shape().size() == 2);
+        REQUIRE(tome.shape()[0] == 2);
+        REQUIRE(tome.shape()[1] == 3);
+        REQUIRE(tome[{{0, 0}}].is_integer());
+        REQUIRE(tome[{{0, 0}}].get<int>() == 1);
+        REQUIRE(tome[{{1, 2}}].get<int>() == 6);
+
+        REQUIRE_THROWS(Tome::read_json_string(j2, schema));
+    }
 }
