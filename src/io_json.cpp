@@ -30,38 +30,54 @@ void read_json(Tome *tome, nlohmann::json const &j, BooleanSchema const &)
 
 void read_json(Tome *tome, nlohmann::json const &j, NumberSchema const &s)
 {
-    if (j.is_number_unsigned())
+    switch (s.type)
     {
-        if (!s.validate(j.get<uint64_t>()))
-            throw ValidationError("unsigned integer out of range");
-        if (tome)
-            *tome = Tome::integer(j.get<uint64_t>());
-    }
-    else if (j.is_number_integer())
-    {
-        if (!s.validate(j.get<int64_t>()))
-            throw ValidationError("signed integer out of range");
+    case NumType::INT8:
+    case NumType::INT16:
+    case NumType::INT32:
+    case NumType::INT64:
+    case NumType::UINT8:
+    case NumType::UINT16:
+    case NumType::UINT32:
+    case NumType::UINT64:
+        if (!j.is_number_integer())
+            throw ValidationError("expected integer");
+        s.validate(j.get<int64_t>());
+
         if (tome)
             *tome = Tome::integer(j.get<int64_t>());
-    }
-    else if (j.is_number_float())
-    {
-        if (!s.validate(j.get<double>()))
-            throw ValidationError("real number out of range");
-        if (tome)
-            *tome = Tome::real(j.get<double>());
-    }
-    else if (j.is_array() && j.size() == 2 && j[0].is_number_float() &&
-             j[1].is_number_float())
-    {
-        if (!s.validate(j[0].get<double>(), j[1].get<double>()))
-            throw ValidationError("complex number out of range");
+        break;
+
+    case NumType::FLOAT32:
+    case NumType::FLOAT64:
+        if (j.is_number_integer())
+        {
+            s.validate(j.get<int64_t>());
+            if (tome)
+                *tome = Tome::real(j.get<int64_t>());
+        }
+        else if (j.is_number_float())
+        {
+            s.validate(j.get<double>());
+            if (tome)
+                *tome = Tome::real(j.get<double>());
+        }
+        else
+            throw ValidationError("expected real number");
+        break;
+
+    case NumType::COMPLEX64:
+    case NumType::COMPLEX128:
+        if (!j.is_array() || j.size() != 2 || !j[0].is_number_float() ||
+            !j[1].is_number_float())
+            throw ValidationError("expected complex number");
+        s.validate(j[0].get<double>(), j[1].get<double>());
+
         if (tome)
             *tome = Tome::complex({j[0].get<double>(), j[1].get<double>()});
-    }
-    else
-    {
-        throw ValidationError("expected number");
+        break;
+    default:
+        throw std::runtime_error("invalid NumType");
     }
 }
 

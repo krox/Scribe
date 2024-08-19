@@ -138,10 +138,9 @@ class NumberSchema
     // TODO: min/max
 
     // validate a integer/real/complex number against the schema
-    bool validate(int64_t) const;
-    bool validate(uint64_t) const;
-    bool validate(double) const;
-    bool validate(double, double) const;
+    void validate(int64_t) const;
+    void validate(double) const;
+    void validate(double, double) const;
 };
 
 class StringSchema

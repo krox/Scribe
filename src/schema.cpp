@@ -129,41 +129,55 @@ Schema Schema::from_json(nlohmann::json const &j)
     return Schema(std::move(s));
 }
 
-bool NumberSchema::validate(int64_t value) const
+void NumberSchema::validate(int64_t value) const
 {
     switch (type)
     {
     case NumType::INT8:
-        return value >= std::numeric_limits<int8_t>::min() &&
-               value <= std::numeric_limits<int8_t>::max();
+        if (value < std::numeric_limits<int8_t>::min() ||
+            value > std::numeric_limits<int8_t>::max())
+            throw ValidationError("integer value out of range of int8");
+        break;
     case NumType::INT16:
-        return value >= std::numeric_limits<int16_t>::min() &&
-               value <= std::numeric_limits<int16_t>::max();
+        if (value < std::numeric_limits<int16_t>::min() ||
+            value > std::numeric_limits<int16_t>::max())
+            throw ValidationError("integer value out of range of int16");
+        break;
     case NumType::INT32:
-        return value >= std::numeric_limits<int32_t>::min() &&
-               value <= std::numeric_limits<int32_t>::max();
+        if (value < std::numeric_limits<int32_t>::min() ||
+            value > std::numeric_limits<int32_t>::max())
+            throw ValidationError("integer value out of range of int32");
+        break;
     case NumType::INT64:
-        return true;
+        break;
     case NumType::UINT8:
-        return value >= 0 && value <= std::numeric_limits<uint8_t>::max();
+        if (value < 0 || value > std::numeric_limits<uint8_t>::max())
+            throw ValidationError("integer value out of range of uint8");
+        break;
     case NumType::UINT16:
-        return value >= 0 && value <= std::numeric_limits<uint16_t>::max();
+        if (value < 0 || value > std::numeric_limits<uint16_t>::max())
+            throw ValidationError("integer value out of range of uint16");
+        break;
     case NumType::UINT32:
-        return value >= 0 && value <= std::numeric_limits<uint32_t>::max();
+        if (value < 0 || value > std::numeric_limits<uint32_t>::max())
+            throw ValidationError("integer value out of range of uint32");
+        break;
     case NumType::UINT64:
-        return value >= 0;
+        if (value < 0)
+            throw ValidationError("integer value out of range of uint64");
+        break;
     case NumType::FLOAT32:
     case NumType::FLOAT64:
     case NumType::COMPLEX64:
     case NumType::COMPLEX128:
-        return true;
+        break;
 
     default:
         throw std::runtime_error("invalid NumType");
     }
 }
 
-bool NumberSchema::validate(uint64_t value) const
+void NumberSchema::validate(double) const
 {
     switch (type)
     {
@@ -171,26 +185,22 @@ bool NumberSchema::validate(uint64_t value) const
     case NumType::INT16:
     case NumType::INT32:
     case NumType::INT64:
-        return true;
     case NumType::UINT8:
-        return value <= std::numeric_limits<uint8_t>::max();
     case NumType::UINT16:
-        return value <= std::numeric_limits<uint16_t>::max();
     case NumType::UINT32:
-        return value <= std::numeric_limits<uint32_t>::max();
     case NumType::UINT64:
-        return true;
+        throw ValidationError("expected integer, got real number");
     case NumType::FLOAT32:
     case NumType::FLOAT64:
     case NumType::COMPLEX64:
     case NumType::COMPLEX128:
-        return true;
+        break;
     default:
         throw std::runtime_error("invalid NumType");
     }
 }
 
-bool NumberSchema::validate(double) const
+void NumberSchema::validate(double, double) const
 {
     switch (type)
     {
@@ -202,35 +212,13 @@ bool NumberSchema::validate(double) const
     case NumType::UINT16:
     case NumType::UINT32:
     case NumType::UINT64:
-        return false;
+        throw ValidationError("expected integer, got complex");
     case NumType::FLOAT32:
     case NumType::FLOAT64:
+        throw ValidationError("expected real number, got complex");
     case NumType::COMPLEX64:
     case NumType::COMPLEX128:
-        return true;
-    default:
-        throw std::runtime_error("invalid NumType");
-    }
-}
-
-bool NumberSchema::validate(double, double) const
-{
-    switch (type)
-    {
-    case NumType::INT8:
-    case NumType::INT16:
-    case NumType::INT32:
-    case NumType::INT64:
-    case NumType::UINT8:
-    case NumType::UINT16:
-    case NumType::UINT32:
-    case NumType::UINT64:
-    case NumType::FLOAT32:
-    case NumType::FLOAT64:
-        return false;
-    case NumType::COMPLEX64:
-    case NumType::COMPLEX128:
-        return true;
+        break;
     default:
         throw std::runtime_error("invalid NumType");
     }
