@@ -27,6 +27,12 @@ struct ReadError : ScribeError
     using ScribeError::ScribeError;
 };
 
+// thrown when a data file/object cannot be written
+struct WriteError : ScribeError
+{
+    using ScribeError::ScribeError;
+};
+
 // helper for std::visit
 template <class... Ts> struct overloaded : Ts...
 {

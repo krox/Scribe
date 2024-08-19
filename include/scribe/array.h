@@ -28,7 +28,10 @@ template <class T> class Array
     T const *data() const { return data_.data(); }
     std::vector<size_t> const &shape() const { return shape_; }
     size_t size() const { return size_; }
+    size_t rank() const { return shape_.size(); }
 
+    std::span<T> flat() { return data_; }
+    std::span<T const> flat() const { return data_; }
     T &flat(size_t i) { return data_.at(i); }
     T const &flat(size_t i) const { return data_.at(i); }
 

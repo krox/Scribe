@@ -185,6 +185,10 @@ class Tome
     static Tome read_file(std::string_view filename, Schema const &schema);
     static Tome read_json_file(std::string_view filename, Schema const &schema);
     static Tome read_json_string(std::string_view json, Schema const &schema);
+
+    // write to a file
+    void write_file(std::string_view filename, Schema const &schema) const;
+    void write_json_file(std::string_view filename, Schema const &schema) const;
 };
 
 template <> struct TomeSerializer<bool>
