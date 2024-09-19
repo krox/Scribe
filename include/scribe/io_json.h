@@ -5,6 +5,7 @@
 #include "scribe/tome.h"
 
 namespace scribe {
+namespace internal {
 
 // validates and reads a JSON object according to the given schema
 //   * throws ValidationError if the JSON object does not follow the schema
@@ -14,10 +15,5 @@ void read_json(Tome *, nlohmann::json const &, Schema const &);
 // writes a JSON object according to the given schema
 void write_json(nlohmann::json &, Tome const &, Schema const &);
 
-// throws ValidationError if the JSON file does not follow the schema
-void validate_json_file(std::string_view filename, Schema const &s);
-
-// TODO: reading/writing directcly from/to a file, without going through an
-// nlohmann::json object
-
+} // namespace internal
 } // namespace scribe

@@ -87,13 +87,13 @@ TEST_CASE("reading a tome from json", "[tome]")
         }
     }
     )";
-
-        auto tome = Tome::read_json_string(j, schema);
+        Tome tome;
+        read_json_string(tome, j, schema);
         REQUIRE(tome.is_dict());
         REQUIRE(tome["foo"].is_dict());
         REQUIRE(tome["foo"]["bar"].is_integer());
 
-        REQUIRE_THROWS(Tome::read_json_string(j2, schema));
+        REQUIRE_THROWS(read_json_string(tome, j2, schema));
     }
 
     SECTION("multi-dim array")
@@ -122,7 +122,8 @@ TEST_CASE("reading a tome from json", "[tome]")
         ]
         )";
 
-        auto tome = Tome::read_json_string(j, schema);
+        Tome tome;
+        read_json_string(tome, j, schema);
         REQUIRE(tome.is_array());
         REQUIRE(tome.shape().size() == 2);
         REQUIRE(tome.shape()[0] == 2);
@@ -131,6 +132,6 @@ TEST_CASE("reading a tome from json", "[tome]")
         REQUIRE(tome[{{0, 0}}].get<int>() == 1);
         REQUIRE(tome[{{1, 2}}].get<int>() == 6);
 
-        REQUIRE_THROWS(Tome::read_json_string(j2, schema));
+        REQUIRE_THROWS(read_json_string(tome, j2, schema));
     }
 }

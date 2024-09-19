@@ -47,7 +47,7 @@ int main(int argc, char **argv)
         auto schema = scribe::Schema::from_file(schema_filename);
         try
         {
-            validate_json_file(data_filename, schema);
+            validate_file(data_filename, schema);
             fmt::print("validation OK\n");
             return 0;
         }
@@ -66,8 +66,9 @@ int main(int argc, char **argv)
     else if (convert_command->parsed())
     {
         auto schema = scribe::Schema::from_file(schema_filename);
-        auto tome = Tome::read_file(data_filename, schema);
-        tome.write_file(out_filename, schema);
+        Tome tome;
+        read_file(tome, data_filename, schema);
+        write_file(out_filename, tome, schema);
     }
     else
     {

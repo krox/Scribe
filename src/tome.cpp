@@ -4,47 +4,58 @@
 #include "scribe/io_json.h"
 #include <fstream>
 
-namespace scribe {
-
-Tome Tome::read_json_file(std::string_view filename, Schema const &schema)
-{
-    Tome tome;
-    read_json(&tome,
-              nlohmann::json::parse(std::ifstream(std::string(filename)),
-                                    nullptr, true, true),
-              schema);
-    return tome;
-}
-
-Tome Tome::read_json_string(std::string_view json, Schema const &schema)
-{
-    Tome tome;
-    read_json(&tome, nlohmann::json::parse(json, nullptr, true, true), schema);
-    return tome;
-}
-
-Tome Tome::read_file(std::string_view filename, Schema const &schema)
-{
-    if (filename.ends_with(".json"))
-        return read_json_file(filename, schema);
-    throw std::runtime_error("unknown file ending");
-}
-
-void Tome::write_file(std::string_view filename, Schema const &schema) const
+void scribe::read_file(Tome &tome, std::string_view filename,
+                       Schema const &schema)
 {
     if (filename.ends_with(".json"))
     {
-        write_json_file(filename, schema);
-        return;
+        auto j = nlohmann::json::parse(std::ifstream(std::string(filename)),
+                                       nullptr, true, true);
+        internal::read_json(&tome, j, schema);
+    }
+    /*else if filename (filename.ends_with(".h5"))
+    {
+        read_hdf5(&tome, filename, schema);
+    }*/
+    else
+        throw std::runtime_error("unknown file ending");
+}
+
+void scribe::write_file(std::string_view filename, Tome const &tome,
+                        Schema const &schema)
+{
+    if (filename.ends_with(".json"))
+    {
+        nlohmann::json j;
+        internal::write_json(j, tome, schema);
+        std::ofstream(std::string(filename)) << j.dump(4) << '\n';
     }
     throw std::runtime_error("unknown file ending");
 }
 
-void Tome::write_json_file(std::string_view filename,
-                           Schema const &schema) const
+void scribe::read_json_string(Tome &tome, std::string_view json,
+                              Schema const &schema)
+{
+    auto j = nlohmann::json::parse(json, nullptr, true, true);
+    internal::read_json(&tome, j, schema);
+}
+
+void scribe::write_json_string(std::string &s, Tome const &tome,
+                               Schema const &schema)
 {
     nlohmann::json j;
-    write_json(j, *this, schema);
-    std::ofstream(std::string(filename)) << j.dump(4) << '\n';
+    internal::write_json(j, tome, schema);
+    s = j.dump(4);
 }
-}; // namespace scribe
+
+void scribe::validate_file(std::string_view filename, Schema const &s)
+{
+    if (filename.ends_with(".json"))
+    {
+        auto j = nlohmann::json::parse(std::ifstream(std::string(filename)),
+                                       nullptr, true, true);
+        internal::read_json(nullptr, j, s);
+    }
+    else
+        throw std::runtime_error("unknown file ending");
+}

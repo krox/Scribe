@@ -4,22 +4,22 @@
 #include "scribe/tome.h"
 #include <fstream>
 
-namespace scribe {
 namespace {
+using namespace scribe;
 
-void read_json(Tome *tome, nlohmann::json const &, NoneSchema const &)
+void read_impl(Tome *tome, nlohmann::json const &, NoneSchema const &)
 {
     (void)tome;
     throw ValidationError("NoneSchema is never valid");
 }
 
-void read_json(Tome *tome, nlohmann::json const &, AnySchema const &)
+void read_impl(Tome *tome, nlohmann::json const &, AnySchema const &)
 {
     if (tome)
         throw ReadError("AnySchema cannot be read into a Tome");
 }
 
-void read_json(Tome *tome, nlohmann::json const &j, BooleanSchema const &)
+void read_impl(Tome *tome, nlohmann::json const &j, BooleanSchema const &)
 {
     if (!j.is_boolean())
         throw ValidationError("expected boolean");
@@ -28,7 +28,7 @@ void read_json(Tome *tome, nlohmann::json const &j, BooleanSchema const &)
         *tome = Tome::boolean(j.get<bool>());
 }
 
-void read_json(Tome *tome, nlohmann::json const &j, NumberSchema const &s)
+void read_impl(Tome *tome, nlohmann::json const &j, NumberSchema const &s)
 {
     switch (s.type)
     {
@@ -81,7 +81,7 @@ void read_json(Tome *tome, nlohmann::json const &j, NumberSchema const &s)
     }
 }
 
-void read_json(Tome *tome, nlohmann::json const &j, StringSchema const &)
+void read_impl(Tome *tome, nlohmann::json const &j, StringSchema const &)
 {
     if (!j.is_string())
         throw ValidationError("expected string");
@@ -97,11 +97,11 @@ void read_elements(std::vector<Tome> *elements, nlohmann::json const &j,
         if (elements)
         {
             elements->emplace_back();
-            read_json(&elements->back(), j, s);
+            internal::read_json(&elements->back(), j, s);
         }
         else
         {
-            read_json(nullptr, j, s);
+            internal::read_json(nullptr, j, s);
         }
         return;
     }
@@ -118,7 +118,7 @@ void read_elements(std::vector<Tome> *elements, nlohmann::json const &j,
         read_elements(elements, elem, s, dim + 1, shape);
 }
 
-void read_json(Tome *tome, nlohmann::json const &j, ArraySchema const &s)
+void read_impl(Tome *tome, nlohmann::json const &j, ArraySchema const &s)
 {
     if (!s.shape)
         throw ReadError(
@@ -138,7 +138,7 @@ void read_json(Tome *tome, nlohmann::json const &j, ArraySchema const &s)
     }
 }
 
-void read_json(Tome *tome, nlohmann::json const &j, DictSchema const &s)
+void read_impl(Tome *tome, nlohmann::json const &j, DictSchema const &s)
 {
     if (!j.is_object())
         throw ValidationError("expected object");
@@ -156,8 +156,8 @@ void read_json(Tome *tome, nlohmann::json const &j, DictSchema const &s)
             if (key == s.items[i].key)
             {
                 found[i] = true;
-                read_json(tome ? &tome->as_dict()[key] : nullptr, value,
-                          s.items[i].schema);
+                internal::read_json(tome ? &tome->as_dict()[key] : nullptr,
+                                    value, s.items[i].schema);
 
                 goto next_item;
             }
@@ -175,12 +175,12 @@ void read_json(Tome *tome, nlohmann::json const &j, DictSchema const &s)
     }
 }
 
-void write_json(nlohmann::json &, Tome const &, NoneSchema const &)
+void write_impl(nlohmann::json &, Tome const &, NoneSchema const &)
 {
     throw ValidationError("NoneSchema is never valid");
 }
 
-void write_json(nlohmann::json &j, Tome const &tome, AnySchema const &)
+void write_impl(nlohmann::json &j, Tome const &tome, AnySchema const &)
 {
     if (tome.is_boolean())
         j = tome.as_boolean();
@@ -196,14 +196,14 @@ void write_json(nlohmann::json &j, Tome const &tome, AnySchema const &)
         throw WriteError("unsupported type when writing AnySchema to JSON");
 }
 
-void write_json(nlohmann::json &j, Tome const &tome, BooleanSchema const &)
+void write_impl(nlohmann::json &j, Tome const &tome, BooleanSchema const &)
 {
     if (!tome.is_boolean())
         throw ValidationError("expected boolean");
     j = tome.as_boolean();
 }
 
-void write_json(nlohmann::json &j, Tome const &tome, NumberSchema const &)
+void write_impl(nlohmann::json &j, Tome const &tome, NumberSchema const &)
 {
     if (tome.is_integer())
         j = tome.as_integer();
@@ -215,7 +215,7 @@ void write_json(nlohmann::json &j, Tome const &tome, NumberSchema const &)
         throw ValidationError("expected number");
 }
 
-void write_json(nlohmann::json &j, Tome const &tome, StringSchema const &)
+void write_impl(nlohmann::json &j, Tome const &tome, StringSchema const &)
 {
     j = tome.as_string();
 }
@@ -225,7 +225,7 @@ void write_elements(nlohmann::json &j, Tome const *&elements, Schema const &s,
 {
     if (dim == (int)shape.size())
     {
-        write_json(j, *elements++, s);
+        internal::write_json(j, *elements++, s);
         return;
     }
 
@@ -238,7 +238,7 @@ void write_elements(nlohmann::json &j, Tome const *&elements, Schema const &s,
     }
 }
 
-void write_json(nlohmann::json &j, Tome const &tome, ArraySchema const &s)
+void write_impl(nlohmann::json &j, Tome const &tome, ArraySchema const &s)
 {
     if (!tome.is_array())
         throw ValidationError("expected array");
@@ -249,7 +249,7 @@ void write_json(nlohmann::json &j, Tome const &tome, ArraySchema const &s)
     write_elements(j, it, s.elements, 0, shape);
 }
 
-void write_json(nlohmann::json &j, Tome const &tome, DictSchema const &s)
+void write_impl(nlohmann::json &j, Tome const &tome, DictSchema const &s)
 {
     if (!tome.is_dict())
         throw ValidationError("expected dict");
@@ -265,25 +265,19 @@ void write_json(nlohmann::json &j, Tome const &tome, DictSchema const &s)
             continue;
         }
 
-        write_json(j[item.key], it->second, item.schema);
+        internal::write_json(j[item.key], it->second, item.schema);
     }
 }
 } // namespace
-} // namespace scribe
 
-void scribe::read_json(Tome *tome, nlohmann::json const &j, Schema const &s)
+void scribe::internal::read_json(Tome *tome, nlohmann::json const &j,
+                                 Schema const &s)
 {
-    s.visit([&](auto const &s) { read_json(tome, j, s); });
+    s.visit([&](auto const &s) { read_impl(tome, j, s); });
 }
 
-void scribe::write_json(nlohmann::json &j, Tome const &tome, Schema const &s)
+void scribe::internal::write_json(nlohmann::json &j, Tome const &tome,
+                                  Schema const &s)
 {
-    s.visit([&](auto const &s) { write_json(j, tome, s); });
-}
-
-void scribe::validate_json_file(std::string_view filename, Schema const &s)
-{
-    auto j = nlohmann::json::parse(std::ifstream(std::string(filename)),
-                                   nullptr, true, true);
-    read_json(nullptr, j, s);
+    s.visit([&](auto const &s) { write_impl(j, tome, s); });
 }

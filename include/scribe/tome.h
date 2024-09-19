@@ -180,16 +180,18 @@ class Tome
     {
         return as_array()[i];
     }
-
-    // read from a file
-    static Tome read_file(std::string_view filename, Schema const &schema);
-    static Tome read_json_file(std::string_view filename, Schema const &schema);
-    static Tome read_json_string(std::string_view json, Schema const &schema);
-
-    // write to a file
-    void write_file(std::string_view filename, Schema const &schema) const;
-    void write_json_file(std::string_view filename, Schema const &schema) const;
 };
+
+// read/write a tome from/to a file. File format is determined by suffix
+void read_file(Tome &, std::string_view filename, Schema const &);
+void write_file(std::string_view filename, Tome const &, Schema const &);
+
+// read/write a tome from/to a JSON string
+void read_json_string(Tome &, std::string_view json, Schema const &);
+void write_json_string(std::string &json, Tome const &, Schema const &);
+
+// throws ValidationError if the file does not follow the schema
+void validate_file(std::string_view filename, Schema const &s);
 
 template <> struct TomeSerializer<bool>
 {
