@@ -68,9 +68,9 @@ void read_impl(Tome *tome, HighFive::File &file, std::string const &path,
         throw ReadError(fmt::format("object '{}' does not exist", path));
     auto dataset = file.getDataSet(path);
     auto value = dataset.read<std::string>();
+    schema.validate(value);
     if (tome)
         *tome = value;
-    (void)schema;
 }
 
 void read_impl(Tome *tome, HighFive::File &file, std::string const &path,

@@ -134,4 +134,34 @@ TEST_CASE("reading a tome from json", "[tome]")
 
         REQUIRE_THROWS(read_json_string(tome, j2, schema));
     }
+
+    SECTION("strings")
+    {
+        auto schema = Schema::from_json(R"(
+        {
+            "type": "dict",
+            "items": [
+                {
+                    "key": "foo",
+                    "type": "string",
+                    "min_length": 2,
+                    "max_length": 4
+                }
+            ]
+        }
+        )"_json);
+
+        std::string j = R"({"foo": "abc"})";
+        std::string j2 = R"({"foo": ""})";
+        std::string j3 = R"({"foo": "abcdef"})";
+
+        Tome tome;
+        read_json_string(tome, j, schema);
+        REQUIRE(tome.is_dict());
+        REQUIRE(tome["foo"].is_string());
+        REQUIRE(tome["foo"].get<std::string>() == "abc");
+
+        REQUIRE_THROWS(read_json_string(tome, j2, schema));
+        REQUIRE_THROWS(read_json_string(tome, j3, schema));
+    }
 }

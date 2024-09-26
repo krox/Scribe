@@ -97,7 +97,10 @@ Schema Schema::from_json(nlohmann::json const &j)
     }
     else if (type == "string")
     {
-        s.schema_ = StringSchema();
+        StringSchema string_schema;
+        get_optional(string_schema.min_length, "min_length");
+        get_optional(string_schema.max_length, "max_length");
+        s.schema_ = string_schema;
     }
     else if (type == "array")
     {
@@ -264,6 +267,14 @@ bool NumberSchema::is_complex() const
     default:
         return false;
     }
+}
+
+void StringSchema::validate(std::string_view value) const
+{
+    if (min_length && (int)value.size() < *min_length)
+        throw ValidationError("string too short");
+    if (max_length && (int)value.size() > *max_length)
+        throw ValidationError("string too long");
 }
 
 void ArraySchema::validate_shape(std::span<const size_t> shape) const

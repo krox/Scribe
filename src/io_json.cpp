@@ -81,12 +81,14 @@ void read_impl(Tome *tome, nlohmann::json const &j, NumberSchema const &s)
     }
 }
 
-void read_impl(Tome *tome, nlohmann::json const &j, StringSchema const &)
+void read_impl(Tome *tome, nlohmann::json const &j, StringSchema const &s)
 {
     if (!j.is_string())
         throw ValidationError("expected string");
+    auto value = j.get<std::string>();
+    s.validate(value);
     if (tome)
-        *tome = Tome::string(j.get<std::string>());
+        *tome = value;
 }
 
 void read_elements(std::vector<Tome> *elements, nlohmann::json const &j,
@@ -142,37 +144,20 @@ void read_impl(Tome *tome, nlohmann::json const &j, DictSchema const &s)
 {
     if (!j.is_object())
         throw ValidationError("expected object");
+
+    // get and validate list of keys
+    std::vector<std::string> keys;
+    for (auto const &item : j.items())
+        keys.push_back(item.key());
+    auto schemas = s.validate(keys);
+    assert(keys.size() == schemas.size());
+
+    // read and validate each item
     if (tome)
         *tome = Tome::dict();
-
-    auto found = std::vector<bool>(s.items.size(), false);
-
-    // 1) check all items in the json object against the scheme and read
-    // them
-    for (auto const &[key, value] : j.items())
-    {
-        for (size_t i = 0; i < s.items.size(); ++i)
-        {
-            if (key == s.items[i].key)
-            {
-                found[i] = true;
-                internal::read_json(tome ? &tome->as_dict()[key] : nullptr,
-                                    value, s.items[i].schema);
-
-                goto next_item;
-            }
-        }
-        // element (key,value) did not match against any item in the scheme
-        throw ValidationError("unexpected key: " + key);
-    next_item:;
-    }
-
-    // 2) check that all non-optional items were found
-    for (size_t i = 0; i < s.items.size(); ++i)
-    {
-        if (!s.items[i].optional && !found[i])
-            throw ValidationError("missing key: " + s.items[i].key);
-    }
+    for (size_t i = 0; i < keys.size(); ++i)
+        internal::read_json(tome ? &tome->as_dict()[keys[i]] : nullptr,
+                            j.at(keys[i]), schemas[i]);
 }
 
 void write_impl(nlohmann::json &, Tome const &, NoneSchema const &)

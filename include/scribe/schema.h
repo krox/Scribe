@@ -135,7 +135,7 @@ class NumberSchema
 {
   public:
     NumType type;
-    // TODO: min/max
+    // future: some min/max values could go here
 
     bool is_integer() const;
     bool is_real() const;
@@ -149,7 +149,12 @@ class NumberSchema
 
 class StringSchema
 {
-    // TODO: a full regex-style constraint could go here
+  public:
+    std::optional<int> min_length;
+    std::optional<int> max_length;
+    // future: full regex pattern could go here
+
+    void validate(std::string_view) const;
 };
 
 class ArraySchema
