@@ -12,5 +12,8 @@ namespace internal {
 //   * set tome=nullptr to only validate
 void read_hdf5(Tome *, HighFive::File &, std::string const &path,
                Schema const &);
+
+void write_hdf5(HighFive::File &, std::string const &path, Tome const &,
+                Schema const &);
 } // namespace internal
 } // namespace scribe

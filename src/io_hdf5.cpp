@@ -120,6 +120,144 @@ void read_impl(Tome *tome, HighFive::File &file, std::string const &path,
                             file, path + "/" + item_keys[i], item_schemas[i]);
 }
 
+void write_impl(HighFive::File &file, std::string const &path, Tome const &tome,
+                NoneSchema const &)
+{
+    (void)file;
+    (void)path;
+    (void)tome;
+    throw ValidationError("NoneSchema is never valid");
+}
+
+void write_impl(HighFive::File &file, std::string const &path, Tome const &tome,
+                AnySchema const &)
+{
+    (void)file;
+    (void)path;
+    (void)tome;
+    throw std::runtime_error("AnySchema is not supported for writing");
+}
+
+void write_impl(HighFive::File &file, std::string const &path, Tome const &tome,
+                BooleanSchema const &schema)
+{
+    (void)file;
+    (void)path;
+    (void)tome;
+    (void)schema;
+    throw std::runtime_error("not implemented (BooleanSchema)");
+}
+
+void write_impl(HighFive::File &file, std::string const &path, Tome const &tome,
+                NumberSchema const &schema)
+{
+    if (schema.is_integer())
+    {
+        auto value = tome.as_integer();
+        schema.validate(value);
+        switch (schema.type)
+        {
+        case NumType::INT8:
+            file.createDataSet<int8_t>(path, value);
+            break;
+        case NumType::INT16:
+            file.createDataSet<int16_t>(path, value);
+            break;
+        case NumType::INT32:
+            file.createDataSet<int32_t>(path, value);
+            break;
+        case NumType::INT64:
+            file.createDataSet<int64_t>(path, value);
+            break;
+        case NumType::UINT8:
+            file.createDataSet<uint8_t>(path, value);
+            break;
+        case NumType::UINT16:
+            file.createDataSet<uint16_t>(path, value);
+            break;
+        case NumType::UINT32:
+            file.createDataSet<uint32_t>(path, value);
+            break;
+        case NumType::UINT64:
+            file.createDataSet<uint64_t>(path, value);
+            break;
+        default:
+            throw std::runtime_error("invalid NumType");
+        }
+    }
+    else if (schema.is_real())
+    {
+        auto value = tome.as_real();
+        schema.validate(value);
+        switch (schema.type)
+        {
+        case NumType::FLOAT32:
+            file.createDataSet<float>(path, value);
+            break;
+        case NumType::FLOAT64:
+            file.createDataSet<double>(path, value);
+            break;
+        default:
+            throw std::runtime_error("invalid NumType");
+        }
+    }
+    else
+        throw std::runtime_error(
+            "invalid NumType (Complex not implemented yet)");
+}
+
+void write_impl(HighFive::File &file, std::string const &path, Tome const &tome,
+                StringSchema const &schema)
+{
+    auto value = tome.as_string();
+    schema.validate(value);
+    file.createDataSet<std::string>(path, value);
+}
+
+void write_impl(HighFive::File &file, std::string const &path, Tome const &tome,
+                ArraySchema const &schema)
+{
+    auto values = tome.as_array();
+    NumberSchema item_schema;
+    schema.elements.visit(overloaded{
+        [&](NumberSchema const &s) { item_schema = s; },
+        [](auto const &) {
+            throw std::runtime_error("ArraySchema containing something other "
+                                     "than numbers is not implemented yet");
+        }});
+    if (item_schema.type == NumType::FLOAT64)
+    {
+        auto shape = values.shape();
+        auto dataset = file.createDataSet<double>(
+            path, HighFive::DataSpace(values.shape()));
+        std::vector<double> data;
+        for (auto const &v : values.flat())
+            data.push_back(v.as_real());
+        dataset.write_raw<double>(data.data());
+    }
+    else
+        throw std::runtime_error("not implemented (ArraySchema containing "
+                                 "something other than float64)");
+}
+
+void write_impl(HighFive::File &file, std::string const &path, Tome const &tome,
+                DictSchema const &schema)
+{
+    if (!tome.is_dict())
+        throw ValidationError("expected a dictionary");
+    std::vector<std::string> keys;
+    for (auto const &[key, _] : tome.as_dict())
+        keys.push_back(key);
+    auto item_schemas = schema.validate(keys);
+    assert(keys.size() == item_schemas.size());
+
+    if (path != "/")
+        file.createGroup(path);
+    for (size_t i = 0; i < keys.size(); ++i)
+        internal::write_hdf5(file, path + "/" + keys[i],
+                             tome.as_dict().at(keys[i]), item_schemas[i]);
+}
+
 } // namespace
 
 void scribe::internal::read_hdf5(Tome *tome, HighFive::File &file,
@@ -128,4 +266,12 @@ void scribe::internal::read_hdf5(Tome *tome, HighFive::File &file,
     assert(file.isValid());
     assert(!path.empty() && path.front() == '/');
     schema.visit([&](auto const &s) { read_impl(tome, file, path, s); });
+}
+
+void scribe::internal::write_hdf5(HighFive::File &file, std::string const &path,
+                                  Tome const &tome, Schema const &schema)
+{
+    assert(file.isValid());
+    assert(!path.empty() && path.front() == '/');
+    schema.visit([&](auto const &s) { write_impl(file, path, tome, s); });
 }

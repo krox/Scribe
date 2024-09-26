@@ -16,32 +16,21 @@
         {
             "key": "baz",
             "type": "array",
+            "shape": [
+                2,
+                3
+            ],
             "elements": {
                 "type": "float64"
             }
         },
         {
-            "key": "nested_array",
-            "type": "array",
-            "elements": {
-                "type": "array",
-                "elements": {
-                    "type": "string"
-                }
-            }
-        },
-        {
-            "key": "nested_dict",
+            "key": "sub",
             "type": "dict",
             "items": [
                 {
-                    "key": "a_string",
+                    "key": "a",
                     "type": "string"
-                },
-                {
-                    "key": "a_number",
-                    "type": "complex128",
-                    "optional": true
                 }
             ]
         }

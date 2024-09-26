@@ -32,6 +32,14 @@ void scribe::write_file(std::string_view filename, Tome const &tome,
         internal::write_json(j, tome, schema);
         std::ofstream(std::string(filename)) << j.dump(4) << '\n';
     }
+    else if (filename.ends_with(".h5") || filename.ends_with(".hdf5"))
+    {
+        auto file =
+            HighFive::File(std::string(filename), HighFive::File::ReadWrite |
+                                                      HighFive::File::Create |
+                                                      HighFive::File::Truncate);
+        internal::write_hdf5(file, "/", tome, schema);
+    }
     else
         throw std::runtime_error("unknown file ending when writing a file");
 }
