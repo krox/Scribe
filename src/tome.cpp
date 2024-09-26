@@ -1,6 +1,6 @@
 #include "scribe/tome.h"
 
-#include "nlohmann/json.hpp"
+#include "scribe/io_hdf5.h"
 #include "scribe/io_json.h"
 #include <fstream>
 
@@ -13,12 +13,14 @@ void scribe::read_file(Tome &tome, std::string_view filename,
                                        nullptr, true, true);
         internal::read_json(&tome, j, schema);
     }
-    /*else if filename (filename.ends_with(".h5"))
+    else if (filename.ends_with(".h5") || filename.ends_with(".hdf5"))
     {
-        read_hdf5(&tome, filename, schema);
-    }*/
+        auto file =
+            HighFive::File(std::string(filename), HighFive::File::ReadOnly);
+        internal::read_hdf5(&tome, file, "/", schema);
+    }
     else
-        throw std::runtime_error("unknown file ending");
+        throw std::runtime_error("unknown file ending when reading a file");
 }
 
 void scribe::write_file(std::string_view filename, Tome const &tome,
@@ -30,7 +32,8 @@ void scribe::write_file(std::string_view filename, Tome const &tome,
         internal::write_json(j, tome, schema);
         std::ofstream(std::string(filename)) << j.dump(4) << '\n';
     }
-    throw std::runtime_error("unknown file ending");
+    else
+        throw std::runtime_error("unknown file ending when writing a file");
 }
 
 void scribe::read_json_string(Tome &tome, std::string_view json,
@@ -57,5 +60,5 @@ void scribe::validate_file(std::string_view filename, Schema const &s)
         internal::read_json(nullptr, j, s);
     }
     else
-        throw std::runtime_error("unknown file ending");
+        throw std::runtime_error("unknown file ending when validating a file");
 }

@@ -137,6 +137,10 @@ class NumberSchema
     NumType type;
     // TODO: min/max
 
+    bool is_integer() const;
+    bool is_real() const;
+    bool is_complex() const;
+
     // validate a integer/real/complex number against the schema
     void validate(int64_t) const;
     void validate(double) const;
@@ -154,6 +158,8 @@ class ArraySchema
     Schema elements;
 
     std::optional<std::vector<int64_t>> shape;
+
+    void validate_shape(std::span<const size_t> shape) const;
 };
 
 struct ItemSchema
@@ -165,8 +171,16 @@ struct ItemSchema
 
 class DictSchema
 {
+    // -1 if not found
+    int find_key(std::string_view key) const;
+
   public:
     std::vector<ItemSchema> items;
+
+    // Validate that each (non-optional) key is present in the given list of
+    // keys. returns the schema that each sub-object should be validated
+    // against.
+    std::vector<Schema> validate(std::span<const std::string> keys) const;
 };
 
 class SchemaImpl

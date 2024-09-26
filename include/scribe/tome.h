@@ -111,6 +111,15 @@ class Tome
         return Tome(direct{},
                     array_type{std::move(elements), std::move(shape)});
     }
+    static Tome array(std::vector<double> data, std::vector<size_t> shape)
+    {
+        // TODO: compact representation goes here
+        std::vector<Tome> elems;
+        elems.reserve(data.size());
+        for (auto const &d : data)
+            elems.push_back(Tome::real(d));
+        return array(std::move(elems), std::move(shape));
+    }
     static Tome dict() { return Tome(direct{}, dict_type{}); }
 
     // get contained data. Throws on type mismatch

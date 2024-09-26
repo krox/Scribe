@@ -224,4 +224,90 @@ void NumberSchema::validate(double, double) const
     }
 }
 
+bool NumberSchema::is_integer() const
+{
+    switch (type)
+    {
+    case NumType::INT8:
+    case NumType::INT16:
+    case NumType::INT32:
+    case NumType::INT64:
+    case NumType::UINT8:
+    case NumType::UINT16:
+    case NumType::UINT32:
+    case NumType::UINT64:
+        return true;
+    default:
+        return false;
+    }
+}
+
+bool NumberSchema::is_real() const
+{
+    switch (type)
+    {
+    case NumType::FLOAT32:
+    case NumType::FLOAT64:
+        return true;
+    default:
+        return false;
+    }
+}
+
+bool NumberSchema::is_complex() const
+{
+    switch (type)
+    {
+    case NumType::COMPLEX64:
+    case NumType::COMPLEX128:
+        return true;
+    default:
+        return false;
+    }
+}
+
+void ArraySchema::validate_shape(std::span<const size_t> shape) const
+{
+    if (this->shape)
+    {
+        if (shape.size() != this->shape->size())
+            throw ValidationError(
+                "shape mismatch (wrong number of dimensions)");
+        for (size_t i = 0; i < shape.size(); ++i)
+            if ((*this->shape)[i] != -1 &&
+                shape[i] != (size_t)(*this->shape)[i])
+                throw ValidationError("shape mismatch (wrong size)");
+    }
+}
+
+int DictSchema::find_key(std::string_view key) const
+{
+    for (size_t i = 0; i < items.size(); ++i)
+        if (key == items[i].key)
+            return i;
+    return -1;
+}
+
+std::vector<Schema>
+DictSchema::validate(std::span<const std::string> keys) const
+{
+    auto found = std::vector<bool>(items.size(), false);
+    std::vector<Schema> schemas;
+    for (auto const &key : keys)
+    {
+        int i = find_key(key);
+        if (i == -1)
+            throw ValidationError("unexpected key: " + key);
+        found[i] = true;
+        schemas.push_back(items[i].schema);
+    }
+
+    for (size_t i = 0; i < items.size(); ++i)
+    {
+        if (!items[i].optional && !found[i])
+            throw ValidationError("missing key: " + items[i].key);
+    }
+    return schemas;
+}
+
 } // namespace scribe

@@ -9,10 +9,20 @@ CPMAddPackage("gh:fmtlib/fmt#10.1.1")
 CPMAddPackage("gh:CLIUtils/CLI11@2.4.1")
 CPMAddPackage("gh:nlohmann/json@3.11.3")
 
+if(SCRIBE_WITH_HDF5)
+    CPMAddPackage(
+        NAME HighFive
+        GITHUB_REPOSITORY BlueBrain/HighFive
+        GIT_TAG v2.10.0
+        OPTIONS
+        "HIGHFIVE_USE_BOOST OFF"
+    )
+endif()
+
 set(SCRIBE_WARNING_OPTIONS -Wall -Wextra -Werror $<$<CONFIG:Release>:-Wno-maybe-uninitialized>)
 
 # main library
-add_library(libscribe src/codegen.cpp src/io_json.cpp src/schema.cpp src/tome.cpp)
+add_library(libscribe src/codegen.cpp src/io_hdf5.cpp src/io_json.cpp src/schema.cpp src/tome.cpp)
 target_compile_features(libscribe PUBLIC cxx_std_20)
 target_include_directories(libscribe PUBLIC include)
 target_link_libraries(libscribe PUBLIC fmt::fmt nlohmann_json::nlohmann_json)
@@ -21,8 +31,7 @@ target_compile_options(libscribe PRIVATE ${SCRIBE_WARNING_OPTIONS} -O2)
 if(SCRIBE_WITH_HDF5)
     find_package(HDF5 REQUIRED)
     add_compile_definitions(SCRIBE_WITH_HDF5)
-    target_link_libraries(libscribe PUBLIC ${HDF5_LIBRARIES})
-    target_include_directories(libscribe PUBLIC ${HDF5_INCLUDE_DIRS})
+    target_link_libraries(libscribe PUBLIC HighFive)
 endif()
 
 # executables
