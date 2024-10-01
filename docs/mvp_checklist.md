@@ -5,18 +5,18 @@ This is a somewhat-detailed list of all the features to be implemented for the f
 ## Tome type
 
 * [ ] finalize and document overall design of `Tome` (e.g. default=dict? no nulls? implicit conversions?)
-* [x] custom array type (based on `std::vector` plus shape)
-* [ ] custom map type (wrapping `std::unordered_map` for now, but don't leak internals as we will likely switch to a different implementation eventually)
+* [ ] ~~custom array type (based on `std::vector` plus shape)~~ no, use `xtensor` instead
+* [ ] ~~custom map type (wrapping `std::unordered_map` for now, but don't leak internals as we will likely switch to a different implementation eventually)~~ just do `typedef std::map` actually. Not performance critical enough to do something else
 * [ ] compact "array-of-numbers" implementation for integer/float/complex. This has implications for `Tome::operator[]`
 
 ## Schema validation
-Validation has to happen both with the exicit `scribe validate` command, as well as when using any of the `scribe::read(...)` and `scribe::write(...)` commands.
+Validation has to happen both with the exicit `scribe validate` command, as well as the `scribe::read(...)` and `scribe::write(...)` functions that take a schema. Un-validated read/write only does basic consistency checks.
 * [x] string validation: min/max length
 * [x] integer validation: implicit range of type
 * [x] array validation: check shape and recurse to elements
 * [x] dict validation: check keys and recurse to elements
 * [ ] validation errors should indicate a (human-readable) location of the failure
-* [ ] strict mode: more precise type matching, checks chunking, checks presence of checksum
+* [ ] ~~strict mode: more precise type matching, checks chunking, checks presence of checksum~~ no, validation should be strictly black and white. If chunksize is part of the schema, it has to match.
 * [x] schema documentation. See `docs/schema.md`
 * [ ] write a json-schema for the format of a schema itself.
   
@@ -26,7 +26,7 @@ Validation has to happen both with the exicit `scribe validate` command, as well
 * [x] floats
 * [x] complex
 * [x] strings
-* [x] arrays. Rank needs to be specified in the schema, sizes can be discovered in data.
+* [x] arrays. Assume everything 1D when no schema is given.
 * [ ] dicts. Make sure to reject duplicate keys.
 
 ### HDF5
@@ -43,7 +43,6 @@ Validation has to happen both with the exicit `scribe validate` command, as well
 Generate C++ code using the `scribe codegen` command.
 
 * [x] basic header generation
-* [ ] care
 * [ ] better automatic names for nested structs
 * [ ] implementation for `read` and `write` functions, calling out to `libscribe` functions
   
@@ -70,7 +69,8 @@ Generate C++ code using the `scribe codegen` command.
 * [ ] Should we interpred non-existing dicts as `{}`?
 * [ ] Should we interpred non-existing strings as `""`?
 * [ ] What does a (multi-dimensional) array map to when generating C++ code? Some options:
-  * `std::vector<std::vector< ... >>`
-  * `Tome::array<...>`
-  * switch between the two depending on rank
-  * disallow multi-dimensional arrays unless a mapping was specified in the schema
+  * ~~`std::vector<std::vector< ... >>`~~
+  * ~~`Tome::array<...>`~~
+  * ~~switch between the two depending on rank~~
+  * ~~disallow multi-dimensional arrays unless a mapping was specified in the schema~~
+  * default to `xtensor`, regardless of rank
