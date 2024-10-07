@@ -106,7 +106,7 @@ While we strive for maximal generality, not every file format can store data fro
     * numbers outside representable range (e.g., `1.0e1000` will be interpreted as infinity and `1.0e-1000` as zero)
     * numbers with excessive precision (e.g., `3.141592653589793` will be silently rounded to `3.1415927` when used as `float32`)
 * Strict JSON does not support comments at all. Scribe does "support" (i.e. ignore) comments of the `//` and `/* ... */` variety. This applies when reading schemas and when reading data from json files. Output from scribe will always adhere to strict JSON though, i.e., not contain any comments.
-* Duplicate keys in a json objects are not supported and will always trigger a validation failure when reading (note that the JSON specification does discourage but not forbid duplicate keys and leaves the semantics up to implementation).
+* Duplicate keys in a json objects are not supported. For now consider it undefined behaviour which instance of a duplicate key will end up being read. In the future, we might want to always trigger a validation failure. Note that the JSON specification does discourage but not forbid duplicate keys and leaves the semantics up to implementation, `nlohmann::json` by default takes the "last" entry, though could potentially be customized.
 * When reading a json object, the order of keys does not matter. When writing a json object, the order of keys is unspecified, and might change seamingly random inbetween runs of the same code.
 * Note that some of the above could be adjustable in the future using additional options in the schema (e.g. something like `"ignore_extra_keys":true`). In that case, the strict validation will remain the default though.
 
