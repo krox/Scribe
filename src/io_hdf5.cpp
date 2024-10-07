@@ -10,16 +10,83 @@ void read_impl(Tome *, HighFive::File &, std::string const &,
 {
     throw ValidationError("NoneSchema is never valid");
 }
+
 void read_impl(Tome *tome, HighFive::File &file, std::string const &path,
                AnySchema const &)
 {
-    (void)tome;
-    (void)file;
-    (void)path;
     if (!file.exist(path))
         throw ReadError(fmt::format("object '{}' does not exist", path));
-    if (tome)
-        throw ReadError("AnySchema is not supported for reading");
+
+    // validate-only -> no need to read anything
+    if (tome == nullptr)
+        return;
+
+    // check if the object is a group or dataset
+    auto obj_type = file.getObjectType(path);
+    if (obj_type == HighFive::ObjectType::Group)
+    {
+        auto group = file.getGroup(path);
+        std::vector<std::string> item_keys = group.listObjectNames();
+        *tome = Tome::dict();
+        for (auto const &key : item_keys)
+            read_impl(&(*tome)[key], file, path + "/" + key, AnySchema{});
+    }
+    else if (obj_type == HighFive::ObjectType::Dataset)
+    {
+        auto dataset = file.getDataSet(path);
+        auto shape = dataset.getDimensions();
+        size_t size = dataset.getElementCount();
+        auto type = dataset.getDataType();
+
+        if (size == 1)
+        {
+            // read a scalar
+            if (type == HighFive::AtomicType<int64_t>())
+            {
+                *tome = dataset.read<int64_t>();
+            }
+            else if (type == HighFive::AtomicType<double>())
+            {
+                *tome = dataset.read<double>();
+            }
+            else if (type == HighFive::AtomicType<std::string>())
+            {
+                *tome = dataset.read<std::string>();
+            }
+            else
+            {
+                throw ReadError(fmt::format(
+                    "unsupported data type for scalar dataset at '{}'", path));
+            }
+        }
+        else
+        {
+
+            // read an array
+            if (type == HighFive::AtomicType<double>())
+            {
+                std::vector<double> values(size);
+                dataset.read_raw(values.data());
+                *tome = Tome::array(std::move(values), shape);
+            }
+            else if (type == HighFive::AtomicType<int64_t>())
+            {
+                std::vector<int64_t> values(size);
+                dataset.read_raw(values.data());
+                *tome = Tome::array(std::move(values), shape);
+            }
+            else
+            {
+                throw ReadError(fmt::format(
+                    "unsupported data type for array dataset at '{}'", path));
+            }
+        }
+    }
+    else
+    {
+        throw ReadError(
+            fmt::format("unsupported hdf5-object type at '{}'", path));
+    }
 }
 
 void read_impl(Tome *tome, HighFive::File &file, std::string const &path,

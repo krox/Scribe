@@ -67,6 +67,8 @@ enum class NumType
     COMPLEX128
 };
 
+std::string to_string(NumType type);
+
 struct SchemaMetadata
 {
     // unique identifier for the schema (optional)
@@ -97,16 +99,32 @@ class Schema
     std::shared_ptr<const SchemaImpl> schema_ = g_schemaimpl_any; // never null
 
   public:
-    // TODO: clarify the semantics of default construction (should be either
-    // "any" or "none" I guess)
+    // default-constructed schema is "any"
     Schema() : schema_(g_schemaimpl_any) {}
 
     explicit Schema(SchemaImpl &&impl)
         : schema_(std::make_shared<SchemaImpl>(std::move(impl)))
     {}
 
+    explicit Schema(NoneSchema s);
+    explicit Schema(AnySchema s);
+    explicit Schema(BooleanSchema s);
+    explicit Schema(NumberSchema s);
+    explicit Schema(StringSchema s);
+    explicit Schema(ArraySchema s);
+    explicit Schema(DictSchema s);
+
     static Schema from_file(std::string_view filename);
     static Schema from_json(nlohmann::json const &j);
+
+    nlohmann::json to_json() const;
+
+    // shorthand for creating simple schemas
+    static Schema none();
+    static Schema any();
+    static Schema boolean();
+    static Schema number(NumType type);
+    static Schema string();
 
     SchemaImpl const &impl() const
     {
@@ -117,6 +135,7 @@ class Schema
     template <class R = void, class Visitor> R visit(Visitor &&vis) const;
 
     std::string_view name() const;
+    std::string_view description() const;
 };
 
 // compatibility with nlohmann::json '.get' method
@@ -194,7 +213,7 @@ class SchemaImpl
     std::variant<NoneSchema, AnySchema, BooleanSchema, NumberSchema,
                  StringSchema, ArraySchema, DictSchema>
         schema_;
-    SchemaMetadata metadata_; // all optional
+    SchemaMetadata metadata_ = {}; // all optional
 };
 
 template <class R, class Visitor> R Schema::visit(Visitor &&vis) const
@@ -203,5 +222,9 @@ template <class R, class Visitor> R Schema::visit(Visitor &&vis) const
 }
 
 inline std::string_view Schema::name() const { return impl().metadata_.name; }
+inline std::string_view Schema::description() const
+{
+    return impl().metadata_.description;
+}
 
 } // namespace scribe

@@ -120,6 +120,14 @@ class Tome
             elems.push_back(Tome::real(d));
         return array(std::move(elems), std::move(shape));
     }
+    static Tome array(std::vector<int64_t> data, std::vector<size_t> shape)
+    {
+        std::vector<Tome> elems;
+        elems.reserve(data.size());
+        for (auto const &d : data)
+            elems.push_back(Tome::integer(d));
+        return array(std::move(elems), std::move(shape));
+    }
     static Tome dict() { return Tome(direct{}, dict_type{}); }
 
     // get contained data. Throws on type mismatch
@@ -201,6 +209,15 @@ void write_json_string(std::string &json, Tome const &, Schema const &);
 
 // throws ValidationError if the file does not follow the schema
 void validate_file(std::string_view filename, Schema const &s);
+
+// Guess the schema from data.
+//   * this should be considered unstable because there is some guess-work
+//     involved (especially if the data came from a weakly-typed source such as
+//     JSON.)
+//   * mostly useful for interactive exploration of data files, or as a starting
+//     point for creating a schema for already existing data files with unknown
+//     schema.
+Schema guess_schema(Tome const &);
 
 template <> struct TomeSerializer<bool>
 {

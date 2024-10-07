@@ -40,6 +40,13 @@ int main(int argc, char **argv)
     convert_command->add_option("in", data_filename, "input file")->required();
     convert_command->add_option("out", out_filename, "output file")->required();
 
+    auto guess_schema_command = app.add_subcommand(
+        "guess-schema", "guess a schema from a data file (hdf5 only)");
+    guess_schema_command->add_option("data", data_filename, "data file (input)")
+        ->required();
+    guess_schema_command->add_option("schema", schema_filename,
+                                     "schema file (output. default to stdout)");
+
     CLI11_PARSE(app, argc, argv);
 
     if (validate_command->parsed())
@@ -69,6 +76,21 @@ int main(int argc, char **argv)
         Tome tome;
         read_file(tome, data_filename, schema);
         write_file(out_filename, tome, schema);
+    }
+    else if (guess_schema_command->parsed())
+    {
+        Tome tome;
+        read_file(tome, data_filename, Schema::any());
+        auto schema = guess_schema(tome);
+        if (schema_filename.empty())
+        {
+            fmt::print("{}\n", schema.to_json().dump(4));
+        }
+        else
+        {
+            auto file = std::ofstream(schema_filename);
+            file << schema.to_json().dump(4) << '\n';
+        }
     }
     else
     {

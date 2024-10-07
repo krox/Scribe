@@ -3,6 +3,61 @@
 #include "fmt/format.h"
 #include <fstream>
 
+std::string scribe::to_string(NumType type)
+{
+    switch (type)
+    {
+    case NumType::INT8:
+        return "int8";
+    case NumType::INT16:
+        return "int16";
+    case NumType::INT32:
+        return "int32";
+    case NumType::INT64:
+        return "int64";
+    case NumType::UINT8:
+        return "uint8";
+    case NumType::UINT16:
+        return "uint16";
+    case NumType::UINT32:
+        return "uint32";
+    case NumType::UINT64:
+        return "uint64";
+    case NumType::FLOAT32:
+        return "float32";
+    case NumType::FLOAT64:
+        return "float64";
+    case NumType::COMPLEX64:
+        return "complex64";
+    case NumType::COMPLEX128:
+        return "complex128";
+    default:
+        throw std::runtime_error("unknown NumType");
+    }
+}
+
+scribe::Schema::Schema(NoneSchema s)
+    : schema_(std::make_shared<SchemaImpl>(std::move(s)))
+{}
+scribe::Schema::Schema(AnySchema s)
+    : schema_(std::make_shared<SchemaImpl>(std::move(s)))
+{}
+scribe::Schema::Schema(BooleanSchema s)
+    : schema_(std::make_shared<SchemaImpl>(std::move(s)))
+{}
+scribe::Schema::Schema(NumberSchema s)
+    : schema_(std::make_shared<SchemaImpl>(std::move(s)))
+{}
+scribe::Schema::Schema(StringSchema s)
+    : schema_(std::make_shared<SchemaImpl>(std::move(s)))
+{}
+scribe::Schema::Schema(ArraySchema s)
+    : schema_(std::make_shared<SchemaImpl>(std::move(s)))
+{}
+scribe::Schema::Schema(DictSchema s)
+    : schema_(std::make_shared<SchemaImpl>(std::move(s)))
+{}
+
 namespace scribe {
 
 const std::shared_ptr<const SchemaImpl> g_schemaimpl_any =
@@ -130,6 +185,83 @@ Schema Schema::from_json(nlohmann::json const &j)
     }
 
     return Schema(std::move(s));
+}
+
+nlohmann::json Schema::to_json() const
+{
+    nlohmann::json j;
+    if (name() != "")
+        j["schema_name"] = name();
+    if (description() != "")
+        j["schema_description"] = description();
+
+    this->visit(overloaded{
+        [&](NoneSchema const &) { j["type"] = "none"; },
+        [&](AnySchema const &) { j["type"] = "any"; },
+        [&](BooleanSchema const &) { j["type"] = "bool"; },
+        [&](NumberSchema const &s) { j["type"] = to_string(s.type); },
+        [&](StringSchema const &s) {
+            j["type"] = "string";
+            if (s.min_length)
+                j["min_length"] = *s.min_length;
+            if (s.max_length)
+                j["max_length"] = *s.max_length;
+        },
+        [&](ArraySchema const &s) {
+            j["type"] = "array";
+            if (s.shape)
+                j["shape"] = *s.shape;
+            j["elements"] = s.elements.to_json();
+        },
+        [&](DictSchema const &s) {
+            j["type"] = "dict";
+            j["items"] = nlohmann::json::array();
+            for (auto const &item : s.items)
+            {
+                nlohmann::json item_j;
+                item_j["key"] = item.key;
+                if (item.optional)
+                    item_j["optional"] = true;
+                item_j.merge_patch(item.schema.to_json());
+                j["items"].push_back(item_j);
+            }
+        }});
+    return j;
+}
+
+Schema Schema::none()
+{
+    Schema s;
+    s.schema_ = std::make_shared<SchemaImpl>(SchemaImpl{NoneSchema{}});
+    return s;
+}
+
+Schema Schema::any()
+{
+    Schema s;
+    s.schema_ = g_schemaimpl_any;
+    return s;
+}
+
+Schema Schema::boolean()
+{
+    Schema s;
+    s.schema_ = std::make_shared<SchemaImpl>(BooleanSchema{});
+    return s;
+}
+
+Schema Schema::number(NumType type)
+{
+    Schema s;
+    s.schema_ = std::make_shared<SchemaImpl>(NumberSchema{.type = type});
+    return s;
+}
+
+Schema Schema::string()
+{
+    Schema s;
+    s.schema_ = std::make_shared<SchemaImpl>(StringSchema{});
+    return s;
 }
 
 void NumberSchema::validate(int64_t value) const
