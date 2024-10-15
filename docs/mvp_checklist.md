@@ -6,7 +6,7 @@ This is a somewhat-detailed list of all the features to be implemented for the f
 
 * [ ] finalize and document overall design of `Tome` (e.g. default=dict? no nulls? implicit conversions?)
 * [ ] ~~custom array type (based on `std::vector` plus shape)~~ no, use `xtensor` instead
-* [ ] ~~custom map type (wrapping `std::unordered_map` for now, but don't leak internals as we will likely switch to a different implementation eventually)~~ just do `typedef std::map` actually. Not performance critical enough to do something else
+* [x] ~~custom map type (wrapping `std::unordered_map` for now, but don't leak internals as we will likely switch to a different implementation eventually)~~ just do `typedef std::map` actually. Not performance critical enough to do something else
 * [ ] compact "array-of-numbers" implementation for integer/float/complex. This has implications for `Tome::operator[]`
 
 ## Schema validation
@@ -28,15 +28,18 @@ Validation has to happen both with the exicit `scribe validate` command, as well
 * [x] strings
 * [x] arrays. Assume everything 1D when no schema is given.
 * [ ] dicts. Make sure to reject duplicate keys.
+* [ ] 'any' schema reading
+
 
 ### HDF5
-* [ ] float: precision can implicitly change when reading
-* [ ] integer: widening happens silently, narrowing throws validation error
-* [ ] complex, string: document precise mapping (because these are not part of the HDF5 spec). We follow what HighFive does by default.
+* [ ] float: precision has to match exactly
+* [ ] integer: exact width/signdness match
+* [ ] complex, string: document precise mapping (because these are not part of the HDF5 spec). We follow what HighFive does by default. Check how Grid saves complex numbers. MIght need flag in schema/traits/hdf5
 * [x] arrays of numbers via datasets
 * [ ] arrays of non-numbers via groups (potentially nested)
 * [ ] activate chunking (single-chunk is okay as a default)
 * [ ] activate fletcher32
+* [x] reading with 'any' schema
 
 ## Code generation
 
