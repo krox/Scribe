@@ -35,8 +35,7 @@ int main(int argc, char **argv)
 
     auto convert_command = app.add_subcommand(
         "convert", "convert a data file from one format to another");
-    convert_command->add_option("--schema", schema_filename, "schema file")
-        ->required();
+    convert_command->add_option("--schema", schema_filename, "schema file");
     convert_command->add_option("in", data_filename, "input file")->required();
     convert_command->add_option("out", out_filename, "output file")->required();
 
@@ -72,7 +71,9 @@ int main(int argc, char **argv)
     }
     else if (convert_command->parsed())
     {
-        auto schema = scribe::Schema::from_file(schema_filename);
+        auto schema = schema_filename.empty()
+                          ? Schema::any()
+                          : scribe::Schema::from_file(schema_filename);
         Tome tome;
         read_file(tome, data_filename, schema);
         write_file(out_filename, tome, schema);

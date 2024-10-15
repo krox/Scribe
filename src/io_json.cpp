@@ -165,6 +165,24 @@ void write_impl(nlohmann::json &, Tome const &, NoneSchema const &)
     throw ValidationError("NoneSchema is never valid");
 }
 
+void write_elements(nlohmann::json &j, Tome const *&elements, Schema const &s,
+                    int dim, std::vector<size_t> const &shape)
+{
+    if (dim == (int)shape.size())
+    {
+        internal::write_json(j, *elements++, s);
+        return;
+    }
+
+    j = nlohmann::json::array();
+
+    for (size_t i = 0; i < shape[dim]; ++i)
+    {
+        j.push_back(nullptr);
+        write_elements(j[i], elements, s, dim + 1, shape);
+    }
+}
+
 void write_impl(nlohmann::json &j, Tome const &tome, AnySchema const &)
 {
     if (tome.is_boolean())
@@ -177,6 +195,20 @@ void write_impl(nlohmann::json &j, Tome const &tome, AnySchema const &)
         j = {tome.as_complex().real(), tome.as_complex().imag()};
     else if (tome.is_string())
         j = tome.as_string();
+    else if (tome.is_dict())
+    {
+        auto dict = tome.as_dict();
+        j = nlohmann::json::object();
+        for (auto const &item : dict)
+            write_impl(j[item.first], item.second, AnySchema{});
+    }
+    else if (tome.is_array())
+    {
+        auto array = tome.as_array();
+        j = nlohmann::json::array();
+        Tome const *it = &(array.flat()[0]);
+        write_elements(j, it, Schema::any(), 0, array.shape());
+    }
     else
         throw WriteError("unsupported type when writing AnySchema to JSON");
 }
@@ -203,24 +235,6 @@ void write_impl(nlohmann::json &j, Tome const &tome, NumberSchema const &)
 void write_impl(nlohmann::json &j, Tome const &tome, StringSchema const &)
 {
     j = tome.as_string();
-}
-
-void write_elements(nlohmann::json &j, Tome const *&elements, Schema const &s,
-                    int dim, std::vector<size_t> &shape)
-{
-    if (dim == (int)shape.size())
-    {
-        internal::write_json(j, *elements++, s);
-        return;
-    }
-
-    j = nlohmann::json::array();
-
-    for (size_t i = 0; i < shape[dim]; ++i)
-    {
-        j.push_back(nullptr);
-        write_elements(j[i], elements, s, dim + 1, shape);
-    }
 }
 
 void write_impl(nlohmann::json &j, Tome const &tome, ArraySchema const &s)
