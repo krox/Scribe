@@ -34,6 +34,24 @@ using complex_float64_t = std::complex<double>;
 using string_t = std::string;
 using bool_t = bool;
 
+template <class T>
+using Array = xt::xarray_container<std::vector<T>, xt::layout_type::row_major,
+                                   std::vector<std::size_t>>;
+
+// compact numerical arrays
+using int8_array_t = Array<int8_t>;
+using int16_array_t = Array<int16_t>;
+using int32_array_t = Array<int32_t>;
+using int64_array_t = Array<int64_t>;
+using uint8_array_t = Array<uint8_t>;
+using uint16_array_t = Array<uint16_t>;
+using uint32_array_t = Array<uint32_t>;
+using uint64_array_t = Array<uint64_t>;
+using float32_array_t = Array<float32_t>;
+using float64_array_t = Array<float64_t>;
+using complex_float32_array_t = Array<complex_float32_t>;
+using complex_float64_array_t = Array<complex_float64_t>;
+
 // concepts for nice template constraints
 template <class T>
 concept IntegerType = OneOf<T, int8_t, int16_t, int32_t, int64_t, uint8_t,
@@ -47,6 +65,12 @@ concept NumberType = IntegerType<T> || RealType<T> || ComplexType<T>;
 template <class T>
 concept AtomicType = IntegerType<T> || RealType<T> || ComplexType<T> ||
                      std::same_as<T, bool_t> || std::same_as<T, string_t>;
+template <class T>
+concept NumericArrayType =
+    OneOf<T, int8_array_t, int16_array_t, int32_array_t, int64_array_t,
+          uint8_array_t, uint16_array_t, uint32_array_t, uint64_array_t,
+          float32_array_t, float64_array_t, complex_float32_array_t,
+          complex_float64_array_t>;
 
 template <class T> struct TomeSerializer;
 
@@ -54,16 +78,17 @@ class Tome
 {
   public:
     using dict_type = std::map<std::string, Tome>;
-    using array_type =
-        xt::xarray_container<std::vector<Tome>, xt::layout_type::row_major,
-                             std::vector<size_t>>;
+    using array_type = Array<Tome>;
 
     // NOTE: 'dict_type' should be first, as it is the default for 'Tome'
     using variant_type =
         std::variant<dict_type, array_type, string_t, bool_t, int8_t, int16_t,
                      int32_t, int64_t, uint8_t, uint16_t, uint32_t, uint64_t,
-                     float32_t, float64_t, complex_float32_t,
-                     complex_float64_t>;
+                     float32_t, float64_t, complex_float32_t, complex_float64_t,
+                     int8_array_t, int16_array_t, int32_array_t, int64_array_t,
+                     uint8_array_t, uint16_array_t, uint32_array_t,
+                     uint64_array_t, float32_array_t, float64_array_t,
+                     complex_float32_array_t, complex_float64_array_t>;
 
     template <class R = void, class Visitor> R visit(Visitor &&vis)
     {
@@ -110,14 +135,30 @@ class Tome
     bool_t &as_boolean() { return as<bool_t>(); }
     string_t &as_string() { return as<string_t>(); }
     array_type &as_array() { return as<array_type>(); }
+    template <NumberType T> Array<T> &as_numeric_array()
+    {
+        return as<Array<T>>();
+    }
     dict_type &as_dict() { return as<dict_type>(); }
     bool_t as_boolean() const { return as<bool_t>(); }
     string_t const &as_string() const { return as<string_t>(); }
     array_type const &as_array() const { return as<array_type>(); }
+    template <NumberType T> Array<T> const &as_numeric_array() const
+    {
+        return as<Array<T>>();
+    }
     dict_type const &as_dict() const { return as<dict_type>(); }
     bool is_boolean() const { return is<bool_t>(); }
     bool is_string() const { return is<string_t>(); }
-    bool is_array() const { return is<array_type>(); }
+    bool is_array() const
+    {
+        return is<array_type>() || is<int8_array_t>() || is<int16_array_t>() ||
+               is<int32_array_t>() || is<int64_array_t>() ||
+               is<uint8_array_t>() || is<uint16_array_t>() ||
+               is<uint32_array_t>() || is<uint64_array_t>() ||
+               is<float32_array_t>() || is<float64_array_t>() ||
+               is<complex_float32_array_t>() || is<complex_float64_array_t>();
+    }
     bool is_dict() const { return is<dict_type>(); }
 
     // true for int8, int16, int32, int64, uint8, uint16, uint32, uint64
@@ -168,13 +209,21 @@ class Tome
     {
         return Tome(direct{}, string_t{value});
     }
+
+    // empty dict or array
+    static Tome dict() { return Tome(direct{}, dict_type{}); }
     static Tome array() { return Tome(direct{}, array_type{}); }
+
     static Tome array(array_type const &a) { return Tome(direct{}, a); }
     static Tome array(array_type &&a) { return Tome(direct{}, std::move(a)); }
 
+    template <NumericArrayType T> static Tome array(T a)
+    {
+        return Tome(direct{}, std::move(a));
+    }
+
     static Tome array(std::vector<Tome> elems, std::vector<size_t> shape)
     {
-        // auto r = array_type::from_shape(shape);
         std::vector<ptrdiff_t> strides(shape.size());
         auto size =
             xt::compute_strides(shape, xt::layout_type::row_major, strides);
@@ -184,24 +233,18 @@ class Tome
             array_type(std::move(elems), std::move(shape), std::move(strides));
         return Tome(direct{}, std::move(data));
     }
-    static Tome array(std::vector<double> data, std::vector<size_t> shape)
+
+    template <NumberType T>
+    static Tome array(std::vector<T> data, std::vector<size_t> shape)
     {
-        // TODO: compact representation goes here
-        std::vector<Tome> elems;
-        elems.reserve(data.size());
-        for (auto const &d : data)
-            elems.push_back(Tome::real(d));
-        return array(array_type(xt::adapt(elems, shape)));
+        std::vector<ptrdiff_t> strides(shape.size());
+        auto size =
+            xt::compute_strides(shape, xt::layout_type::row_major, strides);
+        if (size != data.size())
+            throw std::runtime_error("size mismatch");
+        return array(
+            Array<T>(std::move(data), std::move(shape), std::move(strides)));
     }
-    static Tome array(std::vector<int64_t> data, std::vector<size_t> shape)
-    {
-        std::vector<Tome> elems;
-        elems.reserve(data.size());
-        for (auto const &d : data)
-            elems.push_back(Tome::integer(d));
-        return array(array_type(xt::adapt(elems, shape)));
-    }
-    static Tome dict() { return Tome(direct{}, dict_type{}); }
 
     // construct a Tome of type 'type', simply 'static_cast'ing the value. I.e.
     // no range checks. Used as backend helper, typically after validation.
@@ -266,7 +309,16 @@ class Tome
     }
 
     // array-like access
-    size_t size() const { return as_array().size(); }
+    size_t size() const
+    {
+        return visit<size_t>(overloaded{
+            [](dict_type const &d) -> size_t { return d.size(); },
+            [](array_type const &a) -> size_t { return a.size(); },
+            [](NumericArrayType auto const &a) -> size_t { return a.size(); },
+            [](auto const &) -> size_t {
+                throw TomeTypeError("called '.size()' on a non-array/dict");
+            }});
+    }
     std::vector<size_t> shape() const
     {
         return {as_array().shape().begin(), as_array().shape().end()};
@@ -338,26 +390,21 @@ template <ComplexType T> struct TomeSerializer<T>
     }
 };
 
-/*
-template <class T> struct TomeSerializer<std::vector<T>>
+template <NumberType T> struct TomeSerializer<std::vector<T>>
 {
-    static Tome to_tome(std::vector<T> const &value)
+    static Tome to_tome(std::vector<T> const &data)
     {
-        return Tome::array(value, {value.size()});
+        return Tome::array(data, {data.size()});
     }
-    static T from_tome(Tome const &tome)
+    static std::vector<T> from_tome(Tome const &tome)
     {
-        std::vector<T> result;
-        auto const &a = tome.as_array();
-        if (a.rank != 1)
-            throw TomeTypeError("expected a 1D array");
-        result.reserve(a.size());
-        for (T const &v : a)
-            result.push_back(TomeSerializer<T>::from_tome(v));
-        return result;
+        auto const &a = tome.as_numeric_array<T>();
+        if (a.dimension() != 1)
+            throw TomeTypeError(
+                "expected a 1D array (when converting Tome to std::vector)");
+        return std::vector<T>(a.begin(), a.end());
     }
 };
-*/
 
 template <> struct TomeSerializer<std::string>
 {

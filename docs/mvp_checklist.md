@@ -5,9 +5,9 @@ This is a somewhat-detailed list of all the features to be implemented for the f
 ## Tome type
 
 * [ ] finalize and document overall design of `Tome` (e.g. default=dict? no nulls? implicit conversions?)
-* [ ] ~~custom array type (based on `std::vector` plus shape)~~ no, use `xtensor` instead
-* [x] ~~custom map type (wrapping `std::unordered_map` for now, but don't leak internals as we will likely switch to a different implementation eventually)~~ just do `typedef std::map` actually. Not performance critical enough to do something else
-* [ ] compact "array-of-numbers" implementation for integer/float/complex. This has implications for `Tome::operator[]`
+* [x] use `xtensor` as array backend.
+* [x] use `std::map<std::string, ...>` as backend for dicts
+* [x] compact "array-of-numbers" implementation for integer/float/complex.
 
 ## Schema validation
 Validation has to happen both with the exicit `scribe validate` command, as well as the `scribe::read(...)` and `scribe::write(...)` functions that take a schema. Un-validated read/write only does basic consistency checks.

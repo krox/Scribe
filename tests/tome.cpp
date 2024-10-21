@@ -48,6 +48,18 @@ TEST_CASE("scribe::Tome as generic type", "[tome]")
         REQUIRE(tome["foo"]["bar"].is_integer());
         REQUIRE(tome["foo"]["bar"].get<int>() == 42);
     }
+
+    SECTION("numeric array")
+    {
+        Tome tome = Tome(std::vector<float>({1.0, 2.0, 3.0}));
+        REQUIRE(tome.is_array());
+        REQUIRE(tome.size() == 3);
+        auto data = tome.get<std::vector<float>>();
+        REQUIRE(data.size() == 3);
+        REQUIRE(data[0] == 1.0);
+        REQUIRE(data[1] == 2.0);
+        REQUIRE(data[2] == 3.0);
+    }
 }
 
 TEST_CASE("reading a tome from json", "[tome]")
