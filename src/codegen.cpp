@@ -66,9 +66,9 @@ inline std::string Codegen::get_type(std::string_view,
         return "float";
     case NumType::FLOAT64:
         return "double";
-    case NumType::COMPLEX64:
+    case NumType::COMPLEX_FLOAT32:
         return "std::complex<float>";
-    case NumType::COMPLEX128:
+    case NumType::COMPLEX_FLOAT64:
         return "std::complex<double>";
     default:
         throw std::runtime_error("invalid NumType");

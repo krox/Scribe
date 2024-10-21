@@ -27,10 +27,10 @@ std::string scribe::to_string(NumType type)
         return "float32";
     case NumType::FLOAT64:
         return "float64";
-    case NumType::COMPLEX64:
-        return "complex64";
-    case NumType::COMPLEX128:
-        return "complex128";
+    case NumType::COMPLEX_FLOAT32:
+        return "complex_float32";
+    case NumType::COMPLEX_FLOAT64:
+        return "complex_float64";
     default:
         throw std::runtime_error("unknown NumType");
     }
@@ -142,13 +142,13 @@ Schema Schema::from_json(nlohmann::json const &j)
     {
         s.schema_ = NumberSchema{.type = NumType::FLOAT64};
     }
-    else if (type == "complex64")
+    else if (type == "complex_float32")
     {
-        s.schema_ = NumberSchema{.type = NumType::COMPLEX64};
+        s.schema_ = NumberSchema{.type = NumType::COMPLEX_FLOAT32};
     }
-    else if (type == "complex128")
+    else if (type == "complex_float64")
     {
-        s.schema_ = NumberSchema{.type = NumType::COMPLEX128};
+        s.schema_ = NumberSchema{.type = NumType::COMPLEX_FLOAT64};
     }
     else if (type == "string")
     {
@@ -303,8 +303,8 @@ void NumberSchema::validate(int64_t value) const
         break;
     case NumType::FLOAT32:
     case NumType::FLOAT64:
-    case NumType::COMPLEX64:
-    case NumType::COMPLEX128:
+    case NumType::COMPLEX_FLOAT32:
+    case NumType::COMPLEX_FLOAT64:
         break;
 
     default:
@@ -327,8 +327,8 @@ void NumberSchema::validate(double) const
         throw ValidationError("expected integer, got real number");
     case NumType::FLOAT32:
     case NumType::FLOAT64:
-    case NumType::COMPLEX64:
-    case NumType::COMPLEX128:
+    case NumType::COMPLEX_FLOAT32:
+    case NumType::COMPLEX_FLOAT64:
         break;
     default:
         throw std::runtime_error("invalid NumType");
@@ -351,8 +351,8 @@ void NumberSchema::validate(double, double) const
     case NumType::FLOAT32:
     case NumType::FLOAT64:
         throw ValidationError("expected real number, got complex");
-    case NumType::COMPLEX64:
-    case NumType::COMPLEX128:
+    case NumType::COMPLEX_FLOAT32:
+    case NumType::COMPLEX_FLOAT64:
         break;
     default:
         throw std::runtime_error("invalid NumType");
@@ -393,8 +393,8 @@ bool NumberSchema::is_complex() const
 {
     switch (type)
     {
-    case NumType::COMPLEX64:
-    case NumType::COMPLEX128:
+    case NumType::COMPLEX_FLOAT32:
+    case NumType::COMPLEX_FLOAT64:
         return true;
     default:
         return false;

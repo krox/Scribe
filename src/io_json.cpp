@@ -30,55 +30,22 @@ void read_impl(Tome *tome, nlohmann::json const &j, BooleanSchema const &)
 
 void read_impl(Tome *tome, nlohmann::json const &j, NumberSchema const &s)
 {
-    switch (s.type)
+    if (j.is_number_integer())
     {
-    case NumType::INT8:
-    case NumType::INT16:
-    case NumType::INT32:
-    case NumType::INT64:
-    case NumType::UINT8:
-    case NumType::UINT16:
-    case NumType::UINT32:
-    case NumType::UINT64:
-        if (!j.is_number_integer())
-            throw ValidationError("expected integer");
-        s.validate(j.get<int64_t>());
-
+        auto value = j.get<int64_t>();
+        s.validate(value);
         if (tome)
-            *tome = Tome::integer(j.get<int64_t>());
-        break;
-
-    case NumType::FLOAT32:
-    case NumType::FLOAT64:
-        if (j.is_number_integer())
-        {
-            s.validate(j.get<int64_t>());
-            if (tome)
-                *tome = Tome::real(j.get<int64_t>());
-        }
-        else if (j.is_number_float())
-        {
-            s.validate(j.get<double>());
-            if (tome)
-                *tome = Tome::real(j.get<double>());
-        }
-        else
-            throw ValidationError("expected real number");
-        break;
-
-    case NumType::COMPLEX64:
-    case NumType::COMPLEX128:
-        if (!j.is_array() || j.size() != 2 || !j[0].is_number_float() ||
-            !j[1].is_number_float())
-            throw ValidationError("expected complex number");
-        s.validate(j[0].get<double>(), j[1].get<double>());
-
-        if (tome)
-            *tome = Tome::complex({j[0].get<double>(), j[1].get<double>()});
-        break;
-    default:
-        throw std::runtime_error("invalid NumType");
+            *tome = Tome::number_unchecked(value, s.type);
     }
+    else if (j.is_number_float())
+    {
+        auto value = j.get<double>();
+        s.validate(value);
+        if (tome)
+            *tome = Tome::number_unchecked(value, s.type);
+    }
+    else
+        throw ValidationError("expected number");
 }
 
 void read_impl(Tome *tome, nlohmann::json const &j, StringSchema const &s)
@@ -188,11 +155,14 @@ void write_impl(nlohmann::json &j, Tome const &tome, AnySchema const &)
     if (tome.is_boolean())
         j = tome.as_boolean();
     else if (tome.is_integer())
-        j = tome.as_integer();
+        j = tome.get<int64_t>();
     else if (tome.is_real())
-        j = tome.as_real();
+        j = tome.get<double>();
     else if (tome.is_complex())
-        j = {tome.as_complex().real(), tome.as_complex().imag()};
+    {
+        auto value = tome.get<std::complex<double>>();
+        j = {value.real(), value.imag()};
+    }
     else if (tome.is_string())
         j = tome.as_string();
     else if (tome.is_dict())
@@ -220,14 +190,26 @@ void write_impl(nlohmann::json &j, Tome const &tome, BooleanSchema const &)
     j = tome.as_boolean();
 }
 
-void write_impl(nlohmann::json &j, Tome const &tome, NumberSchema const &)
+void write_impl(nlohmann::json &j, Tome const &tome, NumberSchema const &s)
 {
     if (tome.is_integer())
-        j = tome.as_integer();
+    {
+        auto val = tome.get<int64_t>();
+        s.validate(val);
+        j = val;
+    }
     else if (tome.is_real())
-        j = tome.as_real();
+    {
+        auto val = tome.get<double>();
+        s.validate(val);
+        j = val;
+    }
     else if (tome.is_complex())
-        j = {tome.as_complex().real(), tome.as_complex().imag()};
+    {
+        auto val = tome.get<std::complex<double>>();
+        s.validate(val.real(), val.imag());
+        j = {val.real(), val.imag()};
+    }
     else
         throw ValidationError("expected number");
 }

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "nlohmann/json.hpp"
+#include "scribe/base.h"
 #include <memory>
 #include <optional>
 #include <string>
@@ -9,36 +10,6 @@
 #include <vector>
 
 namespace scribe {
-
-struct ScribeError : std::runtime_error
-{
-    using std::runtime_error::runtime_error;
-};
-
-// thrown when a data file/object does not follow the expected schema
-struct ValidationError : ScribeError
-{
-    using ScribeError::ScribeError;
-};
-
-// thrown when a data file/object cannot be read
-struct ReadError : ScribeError
-{
-    using ScribeError::ScribeError;
-};
-
-// thrown when a data file/object cannot be written
-struct WriteError : ScribeError
-{
-    using ScribeError::ScribeError;
-};
-
-// helper for std::visit
-template <class... Ts> struct overloaded : Ts...
-{
-    using Ts::operator()...;
-};
-template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
 // forward declarations
 class Schema;
@@ -63,8 +34,8 @@ enum class NumType
     UINT64,
     FLOAT32,
     FLOAT64,
-    COMPLEX64,
-    COMPLEX128
+    COMPLEX_FLOAT32,
+    COMPLEX_FLOAT64
 };
 
 std::string to_string(NumType type);

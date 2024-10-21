@@ -73,29 +73,42 @@ void scribe::validate_file(std::string_view filename, Schema const &s)
 
 scribe::Schema scribe::guess_schema(Tome const &tome)
 {
-    return tome.visit<Schema>(overloaded{
-        [](Tome::boolean_type) { return Schema::boolean(); },
-        [](Tome::integer_type) { return Schema::number(NumType::INT64); },
-        [](Tome::real_type) { return Schema::number(NumType::FLOAT64); },
-        [](Tome::complex_type) { return Schema::number(NumType::COMPLEX128); },
-        [](Tome::string_type) { return Schema::string(); },
-        [](Tome::dict_type t) {
-            DictSchema dict_schema;
-            for (auto const &[key, value] : t)
-            {
-                ItemSchema item_schema;
-                item_schema.key = key;
-                item_schema.schema = guess_schema(value);
-                dict_schema.items.push_back(item_schema);
-            }
-            return Schema(std::move(dict_schema));
-        },
-        [](Tome::array_type a) {
-            ArraySchema array_schema;
-            array_schema.shape = std::vector<int64_t>();
-            for (auto dim : a.shape())
-                array_schema.shape->push_back((int64_t)dim);
-            array_schema.elements = guess_schema(a.flat()[0]);
-            return Schema(std::move(array_schema));
-        }});
+    return tome.visit<Schema>(
+        overloaded{[](bool_t) { return Schema::boolean(); },
+                   [](int8_t) { return Schema::number(NumType::INT8); },
+                   [](int16_t) { return Schema::number(NumType::INT16); },
+                   [](int32_t) { return Schema::number(NumType::INT32); },
+                   [](int64_t) { return Schema::number(NumType::INT64); },
+                   [](uint8_t) { return Schema::number(NumType::UINT8); },
+                   [](uint16_t) { return Schema::number(NumType::UINT16); },
+                   [](uint32_t) { return Schema::number(NumType::UINT32); },
+                   [](uint64_t) { return Schema::number(NumType::UINT64); },
+                   [](float32_t) { return Schema::number(NumType::FLOAT32); },
+                   [](float64_t) { return Schema::number(NumType::FLOAT64); },
+                   [](complex_float32_t) {
+                       return Schema::number(NumType::COMPLEX_FLOAT32);
+                   },
+                   [](complex_float64_t) {
+                       return Schema::number(NumType::COMPLEX_FLOAT64);
+                   },
+                   [](string_t) { return Schema::string(); },
+                   [](Tome::dict_type t) {
+                       DictSchema dict_schema;
+                       for (auto const &[key, value] : t)
+                       {
+                           ItemSchema item_schema;
+                           item_schema.key = key;
+                           item_schema.schema = guess_schema(value);
+                           dict_schema.items.push_back(item_schema);
+                       }
+                       return Schema(std::move(dict_schema));
+                   },
+                   [](Tome::array_type a) {
+                       ArraySchema array_schema;
+                       array_schema.shape = std::vector<int64_t>();
+                       for (auto dim : a.shape())
+                           array_schema.shape->push_back((int64_t)dim);
+                       array_schema.elements = guess_schema(a.flat()[0]);
+                       return Schema(std::move(array_schema));
+                   }});
 }

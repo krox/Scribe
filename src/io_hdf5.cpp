@@ -220,7 +220,7 @@ void write_impl(HighFive::File &file, std::string const &path, Tome const &tome,
 {
     if (schema.is_integer())
     {
-        auto value = tome.as_integer();
+        auto value = tome.get<int64_t>();
         schema.validate(value);
         switch (schema.type)
         {
@@ -254,7 +254,7 @@ void write_impl(HighFive::File &file, std::string const &path, Tome const &tome,
     }
     else if (schema.is_real())
     {
-        auto value = tome.as_real();
+        auto value = tome.get<double>();
         schema.validate(value);
         switch (schema.type)
         {
@@ -294,12 +294,13 @@ void write_impl(HighFive::File &file, std::string const &path, Tome const &tome,
         }});
     if (item_schema.type == NumType::FLOAT64)
     {
+        // TODO: aaaaaaah, this is so ugly
         auto shape = values.shape();
         auto dataset = file.createDataSet<double>(
             path, HighFive::DataSpace(values.shape()));
         std::vector<double> data;
         for (auto const &v : values.flat())
-            data.push_back(v.as_real());
+            data.push_back(v.get<double>());
         dataset.write_raw<double>(data.data());
     }
     else

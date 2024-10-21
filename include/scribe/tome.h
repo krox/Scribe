@@ -2,6 +2,7 @@
 
 #include "fmt/format.h"
 #include "scribe/array.h"
+#include "scribe/base.h"
 #include "scribe/schema.h"
 #include <cassert>
 #include <complex>
@@ -16,36 +17,58 @@
 
 namespace scribe {
 
-class TomeTypeError : public std::runtime_error
-{
-  public:
-    TomeTypeError(std::string const &what) : std::runtime_error(what) {}
-};
+// all the atomic types a Tome can hold
+using int8_t = std::int8_t;
+using int16_t = std::int16_t;
+using int32_t = std::int32_t;
+using int64_t = std::int64_t;
+using uint8_t = std::uint8_t;
+using uint16_t = std::uint16_t;
+using uint32_t = std::uint32_t;
+using uint64_t = std::uint64_t;
+using float32_t = float;
+using float64_t = double;
+using complex_float32_t = std::complex<float>;
+using complex_float64_t = std::complex<double>;
+using string_t = std::string;
+using bool_t = bool;
+
+// concepts for nice template constraints
+template <class T>
+concept IntegerType = OneOf<T, int8_t, int16_t, int32_t, int64_t, uint8_t,
+                            uint16_t, uint32_t, uint64_t>;
+template <class T>
+concept RealType = OneOf<T, float32_t, float64_t>;
+template <class T>
+concept ComplexType = OneOf<T, complex_float32_t, complex_float64_t>;
+template <class T>
+concept NumberType = IntegerType<T> || RealType<T> || ComplexType<T>;
+template <class T>
+concept AtomicType = IntegerType<T> || RealType<T> || ComplexType<T> ||
+                     std::same_as<T, bool_t> || std::same_as<T, string_t>;
 
 template <class T> struct TomeSerializer;
 
 class Tome
 {
   public:
-    using boolean_type = bool;
-    using integer_type = int64_t;
-    using real_type = double;
-    using complex_type = std::complex<double>;
-    using string_type = std::string;
+    using dict_type = std::map<std::string, Tome>;
     using array_type = scribe::Array<Tome>;
-    using dict_type = std::unordered_map<std::string, Tome>;
 
+    // NOTE: 'dict_type' should be first, as it is the default for 'Tome'
     using variant_type =
-        std::variant<dict_type, boolean_type, integer_type, real_type,
-                     complex_type, string_type, array_type>;
+        std::variant<dict_type, array_type, string_t, bool_t, int8_t, int16_t,
+                     int32_t, int64_t, uint8_t, uint16_t, uint32_t, uint64_t,
+                     float32_t, float64_t, complex_float32_t,
+                     complex_float64_t>;
 
     template <class R = void, class Visitor> R visit(Visitor &&vis)
     {
-        return std::visit(std::forward<Visitor>, data_);
+        return std::visit<R>(std::forward<Visitor>(vis), data_);
     }
     template <class R = void, class Visitor> R visit(Visitor &&vis) const
     {
-        return std::visit(std::forward<Visitor>(vis), data_);
+        return std::visit<R>(std::forward<Visitor>(vis), data_);
     }
 
   private:
@@ -56,6 +79,9 @@ class Tome
     {};
     Tome(direct, variant_type &&data) : data_(std::move(data)) {}
 
+  public:
+    // get contained data. Throws on type mismatch
+    // TODO: the 'as'/'is' macros need template constraints
     template <class T> T &as()
     {
         if (auto *value = std::get_if<T>(&data_); value)
@@ -63,7 +89,6 @@ class Tome
         throw TomeTypeError(
             fmt::format("Tome is not of type '{}'", typeid(T).name()));
     }
-
     template <class T> T const &as() const
     {
         if (auto *value = std::get_if<T>(&data_); value)
@@ -72,7 +97,43 @@ class Tome
             fmt::format("Tome is not of type '{}'", typeid(T).name()));
     }
 
-  public:
+    // check type
+    template <class T> bool is() const
+    {
+        return std::holds_alternative<T>(data_);
+    }
+
+    // convenience-wrappers of the above to save some typing.
+    bool_t &as_boolean() { return as<bool_t>(); }
+    string_t &as_string() { return as<string_t>(); }
+    array_type &as_array() { return as<array_type>(); }
+    dict_type &as_dict() { return as<dict_type>(); }
+    bool_t as_boolean() const { return as<bool_t>(); }
+    string_t const &as_string() const { return as<string_t>(); }
+    array_type const &as_array() const { return as<array_type>(); }
+    dict_type const &as_dict() const { return as<dict_type>(); }
+    bool is_boolean() const { return is<bool_t>(); }
+    bool is_string() const { return is<string_t>(); }
+    bool is_array() const { return is<array_type>(); }
+    bool is_dict() const { return is<dict_type>(); }
+
+    // true for int8, int16, int32, int64, uint8, uint16, uint32, uint64
+    bool is_integer() const
+    {
+        return is<int8_t>() || is<int16_t>() || is<int32_t>() ||
+               is<int64_t>() || is<uint8_t>() || is<uint16_t>() ||
+               is<uint32_t>() || is<uint64_t>();
+    }
+
+    // true for float32, float64
+    bool is_real() const { return is<float32_t>() || is<float64_t>(); }
+
+    // true for complex_float32, complex_float64
+    bool is_complex() const
+    {
+        return is<complex_float32_t>() || is<complex_float64_t>();
+    }
+
     // default constructor creates an empty dict
     Tome() = default;
 
@@ -85,25 +146,24 @@ class Tome
     Tome &operator=(Tome &&) = default;
 
     // pseudo-constructors with explicit types
-    static Tome boolean(boolean_type value)
+    // NOTE: these should typically be used when implementing the
+    // `TomeSerializer` trait for custom types
+    static Tome boolean(bool_t value) { return Tome(direct{}, bool_t{value}); }
+    template <IntegerType T> static Tome integer(T value)
     {
-        return Tome(direct{}, boolean_type{value});
+        return Tome(direct{}, value);
     }
-    static Tome integer(integer_type value)
+    template <RealType T> static Tome real(T value)
     {
-        return Tome(direct{}, integer_type{value});
+        return Tome(direct{}, value);
     }
-    static Tome real(real_type value)
+    template <ComplexType T> static Tome complex(T value)
     {
-        return Tome(direct{}, real_type{value});
-    }
-    static Tome complex(complex_type value)
-    {
-        return Tome(direct{}, complex_type{value});
+        return Tome(direct{}, value);
     }
     static Tome string(std::string_view value)
     {
-        return Tome(direct{}, string_type{value});
+        return Tome(direct{}, string_t{value});
     }
     static Tome array() { return Tome(direct{}, array_type{}); }
     static Tome array(std::vector<Tome> elements, std::vector<size_t> shape)
@@ -130,54 +190,57 @@ class Tome
     }
     static Tome dict() { return Tome(direct{}, dict_type{}); }
 
-    // get contained data. Throws on type mismatch
-    boolean_type &as_boolean() { return as<boolean_type>(); }
-    integer_type &as_integer() { return as<integer_type>(); }
-    real_type &as_real() { return as<real_type>(); }
-    complex_type &as_complex() { return as<complex_type>(); }
-    string_type &as_string() { return as<string_type>(); }
-    array_type &as_array() { return as<array_type>(); }
-    dict_type &as_dict() { return as<dict_type>(); }
+    // construct a Tome of type 'type', simply 'static_cast'ing the value. I.e.
+    // no range checks. Used as backend helper, typically after validation.
+    static Tome number_unchecked(auto value, NumType type)
+    {
+        switch (type)
+        {
+        case NumType::INT8:
+            return integer(static_cast<int8_t>(value));
+        case NumType::INT16:
+            return integer(static_cast<int16_t>(value));
+        case NumType::INT32:
+            return integer(static_cast<int32_t>(value));
+        case NumType::INT64:
+            return integer(static_cast<int64_t>(value));
+        case NumType::UINT8:
+            return integer(static_cast<uint8_t>(value));
+        case NumType::UINT16:
+            return integer(static_cast<uint16_t>(value));
+        case NumType::UINT32:
+            return integer(static_cast<uint32_t>(value));
+        case NumType::UINT64:
+            return integer(static_cast<uint64_t>(value));
+        case NumType::FLOAT32:
+            return real(static_cast<float32_t>(value));
+        case NumType::FLOAT64:
+            return real(static_cast<float64_t>(value));
+        case NumType::COMPLEX_FLOAT32:
+            return complex(static_cast<complex_float32_t>(value));
+        case NumType::COMPLEX_FLOAT64:
+            return complex(static_cast<complex_float64_t>(value));
+        default:
+            throw std::runtime_error("invalid NumType");
+        }
+    }
 
-    // get contained data (const version)
-    boolean_type as_boolean() const { return as<boolean_type>(); }
-    integer_type as_integer() const { return as<integer_type>(); }
-    real_type as_real() const { return as<real_type>(); }
-    complex_type as_complex() const { return as<complex_type>(); }
-    string_type const &as_string() const { return as<string_type>(); }
-    array_type const &as_array() const { return as<array_type>(); }
-    dict_type const &as_dict() const { return as<dict_type>(); }
-
-    // conversion to/from arbitrary types
+    // Conversion from any type
+    // NOTE: implement for custom types by specializing `TomeSerializer`
     template <class T> Tome(T const &value)
     {
         *this = TomeSerializer<T>::to_tome(value);
     }
+
+    // Conversion to any type
+    // NOTE: implement for custom types by specializing `TomeSerializer`
+    // NOTE: for standard types, some conversions are implicit (floating point
+    // precision change, widening integer conversions), but unsafe stuff is not
+    // (e.g. narrowing integer conversions)
     template <class T> T get() const
     {
         return TomeSerializer<T>::from_tome(*this);
     }
-
-    // check type
-    bool is_boolean() const
-    {
-        return std::holds_alternative<boolean_type>(data_);
-    }
-    bool is_integer() const
-    {
-        return std::holds_alternative<integer_type>(data_);
-    }
-    bool is_real() const { return std::holds_alternative<real_type>(data_); }
-    bool is_complex() const
-    {
-        return std::holds_alternative<complex_type>(data_);
-    }
-    bool is_string() const
-    {
-        return std::holds_alternative<string_type>(data_);
-    }
-    bool is_array() const { return std::holds_alternative<array_type>(data_); }
-    bool is_dict() const { return std::holds_alternative<dict_type>(data_); }
 
     // dict-like access
     Tome &operator[](std::string_view key)
@@ -225,17 +288,37 @@ template <> struct TomeSerializer<bool>
     static bool from_tome(Tome const &tome) { return tome.as_boolean(); }
 };
 
-template <std::integral T> struct TomeSerializer<T>
+template <IntegerType T> struct TomeSerializer<T>
 {
     static Tome to_tome(T value) { return Tome::integer(value); }
-    static T from_tome(Tome const &tome) { return tome.as_integer(); }
+    static T from_tome(Tome const &tome)
+    {
+        // NOTE: implicit conversions like int8->int16 could go here
+        return tome.as<T>();
+    }
 };
 
-template <> struct TomeSerializer<double>
+template <RealType T> struct TomeSerializer<T>
 {
-    static Tome to_tome(double value) { return Tome::real(value); }
-    static double from_tome(Tome const &tome) { return tome.as_real(); }
+    static Tome to_tome(T value) { return Tome::real(value); }
+    static T from_tome(Tome const &tome)
+    {
+        // NOTE: implicit conversions like float32->float64 could go here
+        return tome.as<T>();
+    }
 };
+
+template <ComplexType T> struct TomeSerializer<T>
+{
+    static Tome to_tome(T value) { return Tome::complex(value); }
+    static T from_tome(Tome const &tome)
+    {
+        // NOTE: implicit conversions like complex_float32->complex_float64
+        // could go here
+        return tome.as<T>();
+    }
+};
+
 template <> struct TomeSerializer<std::string>
 {
     static Tome to_tome(std::string_view value) { return Tome::string(value); }
