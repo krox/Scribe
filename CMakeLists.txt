@@ -8,6 +8,8 @@ include(cmake/CPM.cmake)
 CPMAddPackage("gh:fmtlib/fmt#10.1.1")
 CPMAddPackage("gh:CLIUtils/CLI11@2.4.1")
 CPMAddPackage("gh:nlohmann/json@3.11.3")
+CPMAddPackage("gh:xtensor-stack/xtl#0.7.7")
+CPMAddPackage("gh:xtensor-stack/xtensor#0.25.0")
 
 if(SCRIBE_WITH_HDF5)
     CPMAddPackage(
@@ -25,7 +27,7 @@ set(SCRIBE_WARNING_OPTIONS -Wall -Wextra -Werror $<$<CONFIG:Release>:-Wno-maybe-
 add_library(libscribe src/codegen.cpp src/io_hdf5.cpp src/io_json.cpp src/schema.cpp src/tome.cpp)
 target_compile_features(libscribe PUBLIC cxx_std_20)
 target_include_directories(libscribe PUBLIC include)
-target_link_libraries(libscribe PUBLIC fmt::fmt nlohmann_json::nlohmann_json)
+target_link_libraries(libscribe PUBLIC fmt::fmt nlohmann_json::nlohmann_json xtensor)
 target_compile_options(libscribe PRIVATE ${SCRIBE_WARNING_OPTIONS} -O2)
 
 if(SCRIBE_WITH_HDF5)

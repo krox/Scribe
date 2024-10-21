@@ -1,9 +1,10 @@
 #pragma once
 
 #include "fmt/format.h"
-#include "scribe/array.h"
 #include "scribe/base.h"
 #include "scribe/schema.h"
+#include "xtensor/xadapt.hpp"
+#include "xtensor/xarray.hpp"
 #include <cassert>
 #include <complex>
 #include <concepts>
@@ -53,7 +54,9 @@ class Tome
 {
   public:
     using dict_type = std::map<std::string, Tome>;
-    using array_type = scribe::Array<Tome>;
+    using array_type =
+        xt::xarray_container<std::vector<Tome>, xt::layout_type::row_major,
+                             std::vector<size_t>>;
 
     // NOTE: 'dict_type' should be first, as it is the default for 'Tome'
     using variant_type =
@@ -166,10 +169,20 @@ class Tome
         return Tome(direct{}, string_t{value});
     }
     static Tome array() { return Tome(direct{}, array_type{}); }
-    static Tome array(std::vector<Tome> elements, std::vector<size_t> shape)
+    static Tome array(array_type const &a) { return Tome(direct{}, a); }
+    static Tome array(array_type &&a) { return Tome(direct{}, std::move(a)); }
+
+    static Tome array(std::vector<Tome> elems, std::vector<size_t> shape)
     {
-        return Tome(direct{},
-                    array_type{std::move(elements), std::move(shape)});
+        // auto r = array_type::from_shape(shape);
+        std::vector<ptrdiff_t> strides(shape.size());
+        auto size =
+            xt::compute_strides(shape, xt::layout_type::row_major, strides);
+        if (size != elems.size())
+            throw std::runtime_error("size mismatch");
+        auto data =
+            array_type(std::move(elems), std::move(shape), std::move(strides));
+        return Tome(direct{}, std::move(data));
     }
     static Tome array(std::vector<double> data, std::vector<size_t> shape)
     {
@@ -178,7 +191,7 @@ class Tome
         elems.reserve(data.size());
         for (auto const &d : data)
             elems.push_back(Tome::real(d));
-        return array(std::move(elems), std::move(shape));
+        return array(array_type(xt::adapt(elems, shape)));
     }
     static Tome array(std::vector<int64_t> data, std::vector<size_t> shape)
     {
@@ -186,7 +199,7 @@ class Tome
         elems.reserve(data.size());
         for (auto const &d : data)
             elems.push_back(Tome::integer(d));
-        return array(std::move(elems), std::move(shape));
+        return array(array_type(xt::adapt(elems, shape)));
     }
     static Tome dict() { return Tome(direct{}, dict_type{}); }
 
@@ -254,12 +267,18 @@ class Tome
 
     // array-like access
     size_t size() const { return as_array().size(); }
-    std::span<const size_t> shape() const { return as_array().shape(); }
-    Tome &operator[](std::span<const size_t> i) { return as_array()[i]; }
+    std::vector<size_t> shape() const
+    {
+        return {as_array().shape().begin(), as_array().shape().end()};
+    }
+    Tome &operator[](size_t i) { return as_array()(i); }
+    Tome const &operator[](size_t i) const { return as_array()(i); }
+
+    /*Tome &operator[](std::span<const size_t> i) { return as_array().at(i); }
     Tome const &operator[](std::span<const size_t> i) const
     {
-        return as_array()[i];
-    }
+        return as_array().at(i);
+    }*/
 };
 
 // read/write a tome from/to a file. File format is determined by suffix
@@ -318,6 +337,27 @@ template <ComplexType T> struct TomeSerializer<T>
         return tome.as<T>();
     }
 };
+
+/*
+template <class T> struct TomeSerializer<std::vector<T>>
+{
+    static Tome to_tome(std::vector<T> const &value)
+    {
+        return Tome::array(value, {value.size()});
+    }
+    static T from_tome(Tome const &tome)
+    {
+        std::vector<T> result;
+        auto const &a = tome.as_array();
+        if (a.rank != 1)
+            throw TomeTypeError("expected a 1D array");
+        result.reserve(a.size());
+        for (T const &v : a)
+            result.push_back(TomeSerializer<T>::from_tome(v));
+        return result;
+    }
+};
+*/
 
 template <> struct TomeSerializer<std::string>
 {

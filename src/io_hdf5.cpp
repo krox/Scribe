@@ -289,6 +289,7 @@ void write_impl(HighFive::File &file, std::string const &path, Tome const &tome,
     schema.elements.visit(overloaded{
         [&](NumberSchema const &s) { item_schema = s; },
         [](auto const &) {
+            // TODO: implement this
             throw std::runtime_error("ArraySchema containing something other "
                                      "than numbers is not implemented yet");
         }});
@@ -299,7 +300,7 @@ void write_impl(HighFive::File &file, std::string const &path, Tome const &tome,
         auto dataset = file.createDataSet<double>(
             path, HighFive::DataSpace(values.shape()));
         std::vector<double> data;
-        for (auto const &v : values.flat())
+        for (Tome const &v : values)
             data.push_back(v.get<double>());
         dataset.write_raw<double>(data.data());
     }

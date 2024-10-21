@@ -176,8 +176,8 @@ void write_impl(nlohmann::json &j, Tome const &tome, AnySchema const &)
     {
         auto array = tome.as_array();
         j = nlohmann::json::array();
-        Tome const *it = &(array.flat()[0]);
-        write_elements(j, it, Schema::any(), 0, array.shape());
+        Tome const *it = &*array.linear_begin();
+        write_elements(j, it, Schema::any(), 0, tome.shape());
     }
     else
         throw WriteError("unsupported type when writing AnySchema to JSON");
@@ -224,9 +224,9 @@ void write_impl(nlohmann::json &j, Tome const &tome, ArraySchema const &s)
     if (!tome.is_array())
         throw ValidationError("expected array");
     auto const &a = tome.as_array();
-    auto shape = a.shape();
+    auto shape = tome.shape();
 
-    auto it = &a.flat()[0];
+    Tome const *it = &*a.linear_begin();
     write_elements(j, it, s.elements, 0, shape);
 }
 

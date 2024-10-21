@@ -108,7 +108,10 @@ scribe::Schema scribe::guess_schema(Tome const &tome)
                        array_schema.shape = std::vector<int64_t>();
                        for (auto dim : a.shape())
                            array_schema.shape->push_back((int64_t)dim);
-                       array_schema.elements = guess_schema(a.flat()[0]);
+                       if (a.size() > 0)
+                           array_schema.elements = guess_schema(*a.begin());
+                       else
+                           array_schema.elements = Schema::any();
                        return Schema(std::move(array_schema));
                    }});
 }

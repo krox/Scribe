@@ -128,9 +128,9 @@ TEST_CASE("reading a tome from json", "[tome]")
         REQUIRE(tome.shape().size() == 2);
         REQUIRE(tome.shape()[0] == 2);
         REQUIRE(tome.shape()[1] == 3);
-        REQUIRE(tome[{{0, 0}}].is_integer());
-        REQUIRE(tome[{{0, 0}}].get<int>() == 1);
-        REQUIRE(tome[{{1, 2}}].get<int>() == 6);
+        REQUIRE(tome.as_array()(0, 0).is_integer());
+        REQUIRE(tome.as_array()(0, 0).get<int>() == 1);
+        REQUIRE(tome.as_array()(1, 2).get<int>() == 6);
 
         REQUIRE_THROWS(read_json_string(tome, j2, schema));
     }
