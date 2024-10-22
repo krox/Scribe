@@ -70,6 +70,8 @@ TEST_CASE("explicit-type constructors", "[tome]")
     SECTION("standard array 2d")
     {
         auto tome = Tome::array_from_shape({2, 3});
+        REQUIRE_NOTHROW(tome.rank() == 2);
+        REQUIRE_NOTHROW(tome.size() == 6);
         REQUIRE_NOTHROW(tome.as_array().shape().size() == 2);
         REQUIRE_NOTHROW(tome.as_array().shape()[0] == 2);
         REQUIRE_NOTHROW(tome.as_array().shape()[1] == 3);
@@ -93,6 +95,35 @@ TEST_CASE("explicit-type constructors", "[tome]")
             }
     }
     SECTION("standard array 2d from data") {}
+}
+
+TEST_CASE("explicit type checking in tome", "[tome]")
+{
+    SECTION("integers")
+    {
+        auto tome = Tome::integer(42);
+        REQUIRE(tome.is_integer());
+        REQUIRE(tome.is_number());
+        REQUIRE(!tome.is_real());
+        REQUIRE(!tome.is_complex());
+    }
+
+    SECTION("arrays")
+    {
+        auto tome = Tome::array();
+        REQUIRE(tome.is_array());
+        REQUIRE(!tome.is_dict());
+        REQUIRE(!tome.is_numeric_array());
+        REQUIRE(tome.is<scribe::Tome::array_type>());
+
+        auto tome2 = Tome::array_from_shape<double>({2, 3});
+        REQUIRE(tome2.is_array());
+        REQUIRE(tome2.is_numeric_array());
+
+        auto tome3 = Tome::array(std::vector<int>({1, 2, 3}));
+        REQUIRE(tome3.is_array());
+        REQUIRE(tome3.is_numeric_array());
+    }
 }
 
 TEST_CASE("libfmt support of tome", "[tome]")
@@ -207,118 +238,37 @@ TEST_CASE("scribe::Tome as generic type", "[tome]")
     }
 }
 
-TEST_CASE("reading a tome from json", "[tome]")
+struct Point
 {
-    SECTION("basic example")
-    {
-        auto schema = Schema::from_json(R"(
-    {
-        "type": "dict",
-        "items": [
-            {
-                "key": "foo",
-                "type": "dict",
-                "items": [
-                    {
-                        "key": "bar",
-                        "type": "int32"
-                    }
-                ]
-            }
-            ]
-    }
-    )"_json);
+    int x;
+    int y;
+};
 
-        std::string j = R"(
+template <> struct scribe::TomeSerializer<Point>
+{
+    static Tome to_tome(Point const &value)
     {
-        "foo": {
-            "bar": 42
-        }
-    }
-    )";
-
-        std::string j2 = R"(
-    {
-        "foo": {
-            "bar": "42"
-        }
-    }
-    )";
-        Tome tome;
-        read_json_string(tome, j, schema);
-        REQUIRE(tome.is_dict());
-        REQUIRE(tome["foo"].is_dict());
-        REQUIRE(tome["foo"]["bar"].is_integer());
-
-        REQUIRE_THROWS(read_json_string(tome, j2, schema));
+        Tome r;
+        r["x"] = value.x;
+        r["y"] = value.y;
+        return r;
     }
 
-    SECTION("multi-dim array")
+    static Point from_tome(Tome const &tome)
     {
-        auto schema = Schema::from_json(R"(
-        {
-            "type": "array",
-            "shape": [2, -1],
-            "elements": {
-                "type": "int32"
-            }
-        }
-        )"_json);
-
-        std::string j = R"(
-        [
-            [1, 2, 3],
-            [4, 5, 6]
-        ]
-        )";
-
-        std::string j2 = R"(
-        [
-            [1, 2, 3],
-            [4, 5]
-        ]
-        )";
-
-        Tome tome;
-        read_json_string(tome, j, schema);
-        REQUIRE(tome.is_array());
-        REQUIRE(tome.shape().size() == 2);
-        REQUIRE(tome.shape()[0] == 2);
-        REQUIRE(tome.shape()[1] == 3);
-        REQUIRE(tome.as_array()(0, 0).is_integer());
-        REQUIRE(tome.as_array()(0, 0).get<int>() == 1);
-        REQUIRE(tome.as_array()(1, 2).get<int>() == 6);
-
-        REQUIRE_THROWS(read_json_string(tome, j2, schema));
+        Point r;
+        r.x = tome["x"].get<int>();
+        r.y = tome["y"].get<int>();
+        return r;
     }
+};
 
-    SECTION("strings")
-    {
-        auto schema = Schema::from_json(R"(
-        {
-            "type": "dict",
-            "items": [
-                {
-                    "key": "foo",
-                    "type": "string",
-                    "min_length": 2,
-                    "max_length": 4
-                }
-            ]
-        }
-        )"_json);
-
-        std::string j = R"({"foo": "abc"})";
-        std::string j2 = R"({"foo": ""})";
-        std::string j3 = R"({"foo": "abcdef"})";
-
-        Tome tome;
-        read_json_string(tome, j, schema);
-        REQUIRE(tome.is_dict());
-        REQUIRE(tome["foo"].is_string());
-        REQUIRE(tome["foo"].get<std::string>() == "abc");
-
-        REQUIRE_THROWS(read_json_string(tome, j2, schema));
-        REQUIRE_THROWS(read_json_string(tome, j3, schema));
-    }
+TEST_CASE("custom types to/from tome", "[tome]")
+{
+    auto p = Point(1, 2);
+    Tome tome = p;
+    REQUIRE(tome.is_dict());
+    auto p2 = tome.get<Point>();
+    REQUIRE(p2.x == p.x);
+    REQUIRE(p2.y == p.y);
 }

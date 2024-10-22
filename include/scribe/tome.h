@@ -394,8 +394,18 @@ class Tome
     }
     std::vector<size_t> shape() const
     {
-        return {as_array().shape().begin(), as_array().shape().end()};
+        return visit<std::vector<size_t>>(overloaded{
+            [](ArrayType auto const &a) -> std::vector<size_t> {
+                return a.shape();
+            },
+            [](auto const &) -> std::vector<size_t> {
+                throw TomeTypeError("called '.shape()' on a non-array");
+            }});
     }
+
+    size_t rank() const { return shape().size(); }
+
+    // 1D array access
     Tome &operator[](size_t i) { return as_array()(i); }
     Tome const &operator[](size_t i) const { return as_array()(i); }
 

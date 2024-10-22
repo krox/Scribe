@@ -54,7 +54,7 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
     add_compile_options(-fsanitize=address -fno-omit-frame-pointer)
     add_link_options(-fsanitize=address)
 
-    add_executable(scribe_tests tests/tome.cpp tests/codegen.cpp)
+    add_executable(scribe_tests tests/tome.cpp tests/json.cpp tests/codegen.cpp)
     target_compile_features(scribe_tests PRIVATE cxx_std_20)
     target_link_libraries(scribe_tests PRIVATE Catch2::Catch2WithMain libscribe)
     target_compile_options(scribe_tests PUBLIC ${SCRIBE_WARNING_OPTIONS} -g)

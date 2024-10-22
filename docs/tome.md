@@ -204,7 +204,7 @@ struct Point
     float x,y;
 };
 
-template <> struct scribe::TomeSerializer<bool>
+template <> struct scribe::TomeSerializer<Point>
 {
     static Tome to_tome(Point const& value)
     {
