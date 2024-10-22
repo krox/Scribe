@@ -1,6 +1,7 @@
 #pragma once
 
 #include "fmt/format.h"
+#include "fmt/ranges.h"
 #include "scribe/base.h"
 #include "scribe/schema.h"
 #include "xtensor/xadapt.hpp"
@@ -72,6 +73,8 @@ concept NumericArrayType =
           uint8_array_t, uint16_array_t, uint32_array_t, uint64_array_t,
           float32_array_t, float64_array_t, complex_float32_array_t,
           complex_float64_array_t>;
+template <class T>
+concept ArrayType = NumericArrayType<T> || std::same_as<T, Array<Tome>>;
 template <class T>
 concept CompoundType =
     std::same_as<T, Array<Tome>> ||
@@ -274,7 +277,8 @@ class Tome
     // array from existing data. default to 1D if no shape is given
     static Tome array(std::vector<Tome> elems)
     {
-        return array(std::move(elems), {elems.size()});
+        auto shape = std::vector<size_t>{elems.size()};
+        return array(std::move(elems), std::move(shape));
     }
     static Tome array(std::vector<Tome> elems, std::vector<size_t> shape)
     {
@@ -282,14 +286,17 @@ class Tome
         auto size =
             xt::compute_strides(shape, xt::layout_type::row_major, strides);
         if (size != elems.size())
-            throw std::runtime_error("size mismatch");
+            throw std::runtime_error(
+                fmt::format("size mismatch (got {} elements, shape = ({}))",
+                            elems.size(), fmt::join(shape, ", ")));
         auto data =
             array_type(std::move(elems), std::move(shape), std::move(strides));
         return Tome(direct{}, std::move(data));
     }
     template <NumberType T> static Tome array(std::vector<T> data)
     {
-        return array(std::move(data), {data.size()});
+        auto shape = std::vector<size_t>{data.size()};
+        return array(std::move(data), std::move(shape));
     }
     template <NumberType T>
     static Tome array(std::vector<T> data, std::vector<size_t> shape)
@@ -298,7 +305,9 @@ class Tome
         auto size =
             xt::compute_strides(shape, xt::layout_type::row_major, strides);
         if (size != data.size())
-            throw std::runtime_error("size mismatch");
+            throw std::runtime_error(
+                fmt::format("size mismatch (got {} elements, shape = ({}))",
+                            data.size(), fmt::join(shape, ", ")));
         return array(
             Array<T>(std::move(data), std::move(shape), std::move(strides)));
     }
@@ -504,7 +513,7 @@ template <> struct TomeSerializer<std::string>
 };
 
 // string literals
-template <size_t n> struct TomeSerializer<char const[n]>
+template <size_t n> struct TomeSerializer<char[n]>
 {
     static Tome to_tome(char const (&value)[n])
     {
@@ -512,4 +521,80 @@ template <size_t n> struct TomeSerializer<char const[n]>
     }
 };
 
+namespace detail {
+template <class It, class T>
+It format_arrray(It it, T const *&data, std::span<const size_t> shape,
+                 size_t dim)
+{
+    if (dim == shape.size())
+    {
+        if constexpr (std::is_same_v<T, Tome>)
+            return fmt::format_to(it, "{}", *data++);
+        else if constexpr (scribe::ComplexType<T>)
+        {
+            it = fmt::format_to(it, "[{},{}]", data->real(), data->imag());
+            ++data;
+            return it;
+        }
+        else
+            return fmt::format_to(it, "{}", *data++);
+    }
+
+    *it++ = '[';
+    for (size_t i = 0; i < shape[dim]; i++)
+    {
+        if (i > 0)
+            *it++ = ',';
+        it = format_arrray(it, data, shape, dim + 1);
+    }
+    *it++ = ']';
+    return it;
+}
+} // namespace detail
+
 } // namespace scribe
+
+template <> struct fmt::formatter<scribe::Tome>
+{
+    constexpr auto parse(format_parse_context &ctx) { return ctx.begin(); }
+
+    template <typename FormatContext>
+    auto format(scribe::Tome const &tome, FormatContext &ctx) const
+    {
+        auto it = ctx.out();
+        tome.visit(scribe::overloaded{
+            [&](bool value) {
+                it = fmt::format_to(it, "{}", value ? "true" : "false");
+            },
+            [&](std::string const &value) {
+                it = fmt::format_to(it, "\"{}\"", value);
+            },
+            [&](scribe::IntegerType auto const &value) {
+                it = fmt::format_to(it, "{}", value);
+            },
+            [&](scribe::RealType auto const &value) {
+                it = fmt::format_to(it, "{}", value);
+            },
+            [&](scribe::ComplexType auto const &value) {
+                it = fmt::format_to(it, "[{},{}]", value.real(), value.imag());
+            },
+            [&](scribe::Tome::dict_type const &value) {
+                *it++ = '{';
+                bool first = true;
+                for (auto const &[key, val] : value)
+                {
+                    if (!first)
+                        *it++ = ',';
+                    first = false;
+                    it = fmt::format_to(it, "\"{}\":{}", key, val);
+                }
+                *it++ = '}';
+            },
+            [&]<class T>(scribe::Array<T> const &value) {
+                T const *data = value.storage().data();
+                std::vector<size_t> const &shape = value.shape();
+                it = scribe::detail::format_arrray(it, data, shape, 0);
+            }});
+        return it;
+    }
+};

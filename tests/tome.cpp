@@ -95,7 +95,72 @@ TEST_CASE("explicit-type constructors", "[tome]")
     SECTION("standard array 2d from data") {}
 }
 
-TEST_CASE("libfmt support of tome", "[tome]") {}
+TEST_CASE("libfmt support of tome", "[tome]")
+{
+    SECTION("bool")
+    {
+        auto tome = Tome::boolean(true);
+        REQUIRE(fmt::format("{}", tome) == "true");
+    }
+    SECTION("string")
+    {
+        auto tome = Tome::string("hello");
+        REQUIRE(fmt::format("{}", tome) == "\"hello\"");
+    }
+    SECTION("int")
+    {
+        REQUIRE(fmt::format("{}", Tome::integer((int8_t)42)) == "42");
+        REQUIRE(fmt::format("{}", Tome::integer((int16_t)42)) == "42");
+        REQUIRE(fmt::format("{}", Tome::integer((int32_t)42)) == "42");
+        REQUIRE(fmt::format("{}", Tome::integer((int64_t)42)) == "42");
+        REQUIRE(fmt::format("{}", Tome::integer((uint8_t)42)) == "42");
+        REQUIRE(fmt::format("{}", Tome::integer((uint16_t)42)) == "42");
+        REQUIRE(fmt::format("{}", Tome::integer((uint32_t)42)) == "42");
+        REQUIRE(fmt::format("{}", Tome::integer((uint64_t)42)) == "42");
+    }
+    SECTION("real")
+    {
+        REQUIRE(fmt::format("{}", Tome::real(3.14f)) == "3.14");
+        REQUIRE(fmt::format("{}", Tome::real(3.14)) == "3.14");
+    }
+    SECTION("complex")
+    {
+        std::complex<float> c(1.0f, 2.0f);
+        REQUIRE(fmt::format("{}", Tome::complex(c)) == "[1,2]");
+        REQUIRE(fmt::format("{}", Tome::complex(1.0, 2.0)) == "[1,2]");
+    }
+    SECTION("dict")
+    {
+        scribe::Tome::dict_type dict = {{"foo", 42}, {"bar", 3.14}};
+        auto tome = Tome::dict(std::move(dict));
+        assert(dict.empty()); // should be "moved-from"
+        REQUIRE(fmt::format("{}", tome) == R"({"bar":3.14,"foo":42})");
+    }
+    SECTION("standard array 1D")
+    {
+        std::vector<Tome> vec = {1, 2, 3};
+        auto tome = Tome::array(vec);
+        REQUIRE(fmt::format("{}", tome) == "[1,2,3]");
+    }
+    SECTION("standard array 2d")
+    {
+        auto tome = Tome::array_from_shape({2, 3});
+        for (int i = 0; i < 2; i++)
+            for (int j = 0; j < 3; j++)
+                tome.as_array()(i, j) = i * 3 + j + 1;
+        REQUIRE(fmt::format("{}", tome) == "[[1,2,3],[4,5,6]]");
+    }
+    SECTION("numeric complex array 2d")
+    {
+        auto tome = Tome::array_from_shape<std::complex<float>>({2, 3});
+        for (int i = 0; i < 2; i++)
+            for (int j = 0; j < 3; j++)
+                tome.as_numeric_array<std::complex<float>>()(i, j) =
+                    std::complex<float>(i * 3 + j + 1, i * 30 + j * 10);
+        REQUIRE(fmt::format("{}", tome) ==
+                "[[[1,0],[2,10],[3,20]],[[4,30],[5,40],[6,50]]]");
+    }
+}
 
 TEST_CASE("scribe::Tome as generic type", "[tome]")
 {
