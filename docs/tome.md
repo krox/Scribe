@@ -155,6 +155,15 @@ assert(x.shape()[0] == 10);
 assert(x.shape()[1] == 10);
 ```
 
+Alternatively, data can be created first, and than be moved into a Tome in one go:
+```C++
+auto data = std::vector<Tome>(100);
+for(int i = 0; i < 100; i < 100)
+    data[i] = ...;
+auto x = Tome::array(std::move(data), {10,10});
+```
+Note that the `std::move` even avoids copying any data.
+
 ## Numerical Arrays
 
 These are arrays containing homogeneous numerical data, i.e., one of the `NumberType`'s defined above. In memory, they are stored densely, without the indirection of a `Tome` object for every element. While this is a lot more efficient than a standard array, the interface can be a bit more awkward.
@@ -171,8 +180,17 @@ for(int i = 0; i < 10; ++i)
         values(i,j) = i*j;
 ```
 
+Alternatively, data can be created first, and than be moved into a Tome in one go:
+```C++
+auto data = std::vector<double>(100);
+for(int i = 0; i < 100; i < 100)
+    data[i] = ...;
+auto x = Tome::array(std::move(data), {10,10});
+```
+
 NOTE:
-* From a python perspective, a standard array corresponds to a `list`, and a numerical array to a `numpy.ndarray`.
+* The `std::move` in the code-snipped avoids copying of data. This only happens though if it comes from a `std::vector` and not from a different kind of range.
+* From a python perspective, a standard array corresponds to a python builtin `list`, and a numerical array to a `numpy.ndarray`.
 * Under the hood, arrays are implemented using the `xtensor` library. Thus the `.as_numeric_array` function returns some version of a `xt::xarray` type.
 
 
@@ -213,4 +231,4 @@ int main()
 
 ```
 
-Of course, this is a rather pedestrian approach to serialization. Generated code based on a Schema would make above code obsolete.
+Of course, this is a rather pedestrian (and error-prone) approach to serialization. Generated code based on a Schema would make above code obsolete.

@@ -37,6 +37,7 @@ using bool_t = bool;
 template <class T>
 using Array = xt::xarray_container<std::vector<T>, xt::layout_type::row_major,
                                    std::vector<std::size_t>>;
+class Tome;
 
 // compact numerical arrays
 using int8_array_t = Array<int8_t>;
@@ -71,6 +72,13 @@ concept NumericArrayType =
           uint8_array_t, uint16_array_t, uint32_array_t, uint64_array_t,
           float32_array_t, float64_array_t, complex_float32_array_t,
           complex_float64_array_t>;
+template <class T>
+concept CompoundType =
+    std::same_as<T, Array<Tome>> ||
+    std::same_as<T, std::map<std::string, Tome>> || NumericArrayType<T>;
+
+template <class T>
+concept TomeType = AtomicType<T> || CompoundType<T>;
 
 template <class T> struct TomeSerializer;
 
@@ -108,76 +116,6 @@ class Tome
     Tome(direct, variant_type &&data) : data_(std::move(data)) {}
 
   public:
-    // get contained data. Throws on type mismatch
-    // TODO: the 'as'/'is' macros need template constraints
-    template <class T> T &as()
-    {
-        if (auto *value = std::get_if<T>(&data_); value)
-            return *value;
-        throw TomeTypeError(
-            fmt::format("Tome is not of type '{}'", typeid(T).name()));
-    }
-    template <class T> T const &as() const
-    {
-        if (auto *value = std::get_if<T>(&data_); value)
-            return *value;
-        throw TomeTypeError(
-            fmt::format("Tome is not of type '{}'", typeid(T).name()));
-    }
-
-    // check type
-    template <class T> bool is() const
-    {
-        return std::holds_alternative<T>(data_);
-    }
-
-    // convenience-wrappers of the above to save some typing.
-    bool_t &as_boolean() { return as<bool_t>(); }
-    string_t &as_string() { return as<string_t>(); }
-    array_type &as_array() { return as<array_type>(); }
-    template <NumberType T> Array<T> &as_numeric_array()
-    {
-        return as<Array<T>>();
-    }
-    dict_type &as_dict() { return as<dict_type>(); }
-    bool_t as_boolean() const { return as<bool_t>(); }
-    string_t const &as_string() const { return as<string_t>(); }
-    array_type const &as_array() const { return as<array_type>(); }
-    template <NumberType T> Array<T> const &as_numeric_array() const
-    {
-        return as<Array<T>>();
-    }
-    dict_type const &as_dict() const { return as<dict_type>(); }
-    bool is_boolean() const { return is<bool_t>(); }
-    bool is_string() const { return is<string_t>(); }
-    bool is_array() const
-    {
-        return is<array_type>() || is<int8_array_t>() || is<int16_array_t>() ||
-               is<int32_array_t>() || is<int64_array_t>() ||
-               is<uint8_array_t>() || is<uint16_array_t>() ||
-               is<uint32_array_t>() || is<uint64_array_t>() ||
-               is<float32_array_t>() || is<float64_array_t>() ||
-               is<complex_float32_array_t>() || is<complex_float64_array_t>();
-    }
-    bool is_dict() const { return is<dict_type>(); }
-
-    // true for int8, int16, int32, int64, uint8, uint16, uint32, uint64
-    bool is_integer() const
-    {
-        return is<int8_t>() || is<int16_t>() || is<int32_t>() ||
-               is<int64_t>() || is<uint8_t>() || is<uint16_t>() ||
-               is<uint32_t>() || is<uint64_t>();
-    }
-
-    // true for float32, float64
-    bool is_real() const { return is<float32_t>() || is<float64_t>(); }
-
-    // true for complex_float32, complex_float64
-    bool is_complex() const
-    {
-        return is<complex_float32_t>() || is<complex_float64_t>();
-    }
-
     // default constructor creates an empty dict
     Tome() = default;
 
@@ -188,6 +126,114 @@ class Tome
     Tome(Tome &&) = default;
     Tome &operator=(Tome const &) = default;
     Tome &operator=(Tome &&) = default;
+
+    // check contained type
+    template <TomeType T> bool is() const
+    {
+        return std::holds_alternative<T>(data_);
+    }
+    bool is_boolean() const
+    {
+        return visit<bool>(overloaded{
+            [](bool_t const &) { return true; },
+            [](auto const &) { return false; },
+        });
+    }
+    bool is_string() const
+    {
+        return visit<bool>(overloaded{
+            [](string_t const &) { return true; },
+            [](auto const &) { return false; },
+        });
+    }
+    bool is_integer() const
+    {
+        return visit<bool>(overloaded{
+            [](IntegerType auto const &) { return true; },
+            [](auto const &) { return false; },
+        });
+    }
+    bool is_real() const
+    {
+        return visit<bool>(overloaded{
+            [](RealType auto const &) { return true; },
+            [](auto const &) { return false; },
+        });
+    }
+    bool is_complex() const
+    {
+        return visit<bool>(overloaded{
+            [](ComplexType auto const &) { return true; },
+            [](auto const &) { return false; },
+        });
+    }
+    bool is_number() const
+    {
+        return visit<bool>(overloaded{
+            [](NumberType auto const &) { return true; },
+            [](auto const &) { return false; },
+        });
+    }
+    bool is_atomic() const
+    {
+        return visit<bool>(overloaded{
+            [](AtomicType auto const &) { return true; },
+            [](auto const &) { return false; },
+        });
+    }
+    bool is_standard_array() const
+    {
+        return visit<bool>(overloaded{
+            [](array_type const &) { return true; },
+            [](auto const &) { return false; },
+        });
+    }
+    bool is_numeric_array() const
+    {
+        return visit<bool>(overloaded{
+            [](NumericArrayType auto const &) { return true; },
+            [](auto const &) { return false; },
+        });
+    }
+    bool is_array() const { return is_standard_array() || is_numeric_array(); }
+    bool is_dict() const
+    {
+        return visit<bool>(overloaded{
+            [](dict_type const &) { return true; },
+            [](auto const &) { return false; },
+        });
+    }
+    bool is_compound() const { return is_array() || is_dict(); }
+
+    // get contained value, throwing if the type is not as expected
+    template <TomeType T> T &as()
+    {
+        if (auto *value = std::get_if<T>(&data_); value)
+            return *value;
+        throw TomeTypeError(
+            fmt::format("Tome is not of type '{}'", typeid(T).name()));
+    }
+    template <TomeType T> T const &as() const
+    {
+        if (auto *value = std::get_if<T>(&data_); value)
+            return *value;
+        throw TomeTypeError(
+            fmt::format("Tome is not of type '{}'", typeid(T).name()));
+    }
+    string_t &as_string() { return as<string_t>(); }
+    string_t const &as_string() const { return as<string_t>(); }
+    array_type &as_array() { return as<array_type>(); }
+    array_type const &as_array() const { return as<array_type>(); }
+    template <NumberType T> Array<T> &as_numeric_array()
+    {
+        return as<Array<T>>();
+    }
+    template <NumberType T> Array<T> const &as_numeric_array() const
+    {
+        return as<Array<T>>();
+    }
+    dict_type &as_dict() { return as<dict_type>(); }
+    dict_type const &as_dict() const { return as<dict_type>(); }
 
     // pseudo-constructors with explicit types
     // NOTE: these should typically be used when implementing the
@@ -205,23 +251,31 @@ class Tome
     {
         return Tome(direct{}, value);
     }
+    template <RealType T> static Tome complex(T re, T im)
+    {
+        return Tome(direct{}, std::complex<T>(re, im));
+    }
     static Tome string(std::string_view value)
     {
         return Tome(direct{}, string_t{value});
     }
 
-    // empty dict or array
     static Tome dict() { return Tome(direct{}, dict_type{}); }
+    static Tome dict(dict_type const &d) { return Tome(direct{}, d); }
+    static Tome dict(dict_type &&d) { return Tome(direct{}, std::move(d)); }
     static Tome array() { return Tome(direct{}, array_type{}); }
-
     static Tome array(array_type const &a) { return Tome(direct{}, a); }
     static Tome array(array_type &&a) { return Tome(direct{}, std::move(a)); }
-
     template <NumericArrayType T> static Tome array(T a)
     {
         return Tome(direct{}, std::move(a));
     }
 
+    // array from existing data. default to 1D if no shape is given
+    static Tome array(std::vector<Tome> elems)
+    {
+        return array(std::move(elems), {elems.size()});
+    }
     static Tome array(std::vector<Tome> elems, std::vector<size_t> shape)
     {
         std::vector<ptrdiff_t> strides(shape.size());
@@ -233,7 +287,10 @@ class Tome
             array_type(std::move(elems), std::move(shape), std::move(strides));
         return Tome(direct{}, std::move(data));
     }
-
+    template <NumberType T> static Tome array(std::vector<T> data)
+    {
+        return array(std::move(data), {data.size()});
+    }
     template <NumberType T>
     static Tome array(std::vector<T> data, std::vector<size_t> shape)
     {
@@ -244,6 +301,13 @@ class Tome
             throw std::runtime_error("size mismatch");
         return array(
             Array<T>(std::move(data), std::move(shape), std::move(strides)));
+    }
+
+    // array from shape, data uninitialized
+    template <class T = Tome>
+    static Tome array_from_shape(std::vector<size_t> shape)
+    {
+        return array(Array<T>::from_shape(shape));
     }
 
     // construct a Tome of type 'type', simply 'static_cast'ing the value. I.e.
@@ -326,6 +390,30 @@ class Tome
     Tome &operator[](size_t i) { return as_array()(i); }
     Tome const &operator[](size_t i) const { return as_array()(i); }
 
+    template <class T> void push_back(T &&tome)
+    {
+        visit(overloaded{
+            [&](array_type &a) {
+                if (a.dimension() != 1)
+                    throw TomeTypeError(
+                        "called '.push_back()' on a non-1D array");
+
+                // xarray does not support '.push_back' (and isnt supposed to).
+                // but as our backend is actually a std::vector, we can just in
+                // fact to it manually.
+                auto &storage = a.storage();
+                storage.push_back(std::forward<T>(tome));
+                a.reshape({storage.size()});
+            },
+            [&](NumericArrayType auto const &) {
+                throw TomeTypeError(
+                    "called '.push_back()' on a non-standard array");
+            },
+            [&](auto const &) {
+                throw TomeTypeError("called '.push_back()' on a non-array");
+            }});
+    }
+
     /*Tome &operator[](std::span<const size_t> i) { return as_array().at(i); }
     Tome const &operator[](std::span<const size_t> i) const
     {
@@ -356,7 +444,7 @@ Schema guess_schema(Tome const &);
 template <> struct TomeSerializer<bool>
 {
     static Tome to_tome(bool value) { return Tome::boolean(value); }
-    static bool from_tome(Tome const &tome) { return tome.as_boolean(); }
+    static bool from_tome(Tome const &tome) { return tome.as<bool>(); }
 };
 
 template <IntegerType T> struct TomeSerializer<T>
@@ -412,6 +500,15 @@ template <> struct TomeSerializer<std::string>
     static std::string const &from_tome(Tome const &tome)
     {
         return tome.as_string();
+    }
+};
+
+// string literals
+template <size_t n> struct TomeSerializer<char const[n]>
+{
+    static Tome to_tome(char const (&value)[n])
+    {
+        return Tome::string(std::string_view(value, n - 1));
     }
 };
 

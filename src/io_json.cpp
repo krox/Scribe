@@ -153,7 +153,7 @@ void write_elements(nlohmann::json &j, Tome const *&elements, Schema const &s,
 void write_impl(nlohmann::json &j, Tome const &tome, AnySchema const &)
 {
     if (tome.is_boolean())
-        j = tome.as_boolean();
+        j = tome.as<bool>();
     else if (tome.is_integer())
         j = tome.get<int64_t>();
     else if (tome.is_real())
@@ -187,7 +187,7 @@ void write_impl(nlohmann::json &j, Tome const &tome, BooleanSchema const &)
 {
     if (!tome.is_boolean())
         throw ValidationError("expected boolean");
-    j = tome.as_boolean();
+    j = tome.as<bool>();
 }
 
 void write_impl(nlohmann::json &j, Tome const &tome, NumberSchema const &s)
