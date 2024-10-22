@@ -4,7 +4,8 @@ This is a somewhat-detailed list of all the features to be implemented for the f
 
 ## Tome type
 
-* [ ] finalize and document overall design of `Tome` (e.g. default=dict? no nulls? implicit conversions?)
+* [x] finalize and document overall design of `Tome`. done. see `docs/tome.md` for detailed docs.
+* [x] `libfmt` support for Tome
 * [x] use `xtensor` as array backend.
 * [x] use `std::map<std::string, ...>` as backend for dicts
 * [x] compact "array-of-numbers" implementation for integer/float/complex.
