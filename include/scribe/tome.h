@@ -569,7 +569,8 @@ template <> struct fmt::formatter<scribe::Tome>
     constexpr auto parse(format_parse_context &ctx) { return ctx.begin(); }
 
     template <typename FormatContext>
-    auto format(scribe::Tome const &tome, FormatContext &ctx) const
+    auto format(scribe::Tome const &tome,
+                FormatContext &ctx) const -> decltype(ctx.out())
     {
         auto it = ctx.out();
         tome.visit(scribe::overloaded{
