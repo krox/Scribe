@@ -52,11 +52,10 @@ Generate C++ code using the `scribe codegen` command.
   
 ## Testing infrastructure
 
-* [ ] set up automatic unittests using github-runner for 
-  * [ ] linux gcc
-  * [ ] linux clang
-  * [ ] macos
-  * [ ] windows (optional)
+* [x] set up automatic unittests using github-runner for 
+  * [x] linux gcc
+  * [x] linux clang
+  * [x] macos
 * [x] unit-tests for the tome-type on its own, using it as a generic container
 * [x] unit-tests for json-reading/writing
 * [ ] unit-tests for hdf5-reading/writing
