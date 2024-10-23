@@ -21,14 +21,14 @@ if(SCRIBE_WITH_HDF5)
     )
 endif()
 
-set(SCRIBE_WARNING_OPTIONS -Wall -Wextra -Werror $<$<CONFIG:Release>:-Wno-maybe-uninitialized>)
+set(SCRIBE_WARNING_OPTIONS -Wall -Wextra -Werror)
 
 # main library
 add_library(libscribe src/codegen.cpp src/io_hdf5.cpp src/io_json.cpp src/schema.cpp src/tome.cpp)
 target_compile_features(libscribe PUBLIC cxx_std_20)
 target_include_directories(libscribe PUBLIC include)
 target_link_libraries(libscribe PUBLIC fmt::fmt nlohmann_json::nlohmann_json xtensor)
-target_compile_options(libscribe PRIVATE ${SCRIBE_WARNING_OPTIONS} -O2)
+target_compile_options(libscribe PRIVATE ${SCRIBE_WARNING_OPTIONS})
 
 if(SCRIBE_WITH_HDF5)
     find_package(HDF5 REQUIRED)
@@ -39,7 +39,7 @@ endif()
 # executables
 add_executable(scribe src/main.cpp)
 target_compile_features(scribe PUBLIC cxx_std_20)
-target_compile_options(scribe PRIVATE ${SCRIBE_WARNING_OPTIONS} -O2)
+target_compile_options(scribe PRIVATE ${SCRIBE_WARNING_OPTIONS})
 target_link_libraries(scribe libscribe CLI11::CLI11 nlohmann_json::nlohmann_json)
 
 # install
