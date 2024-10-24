@@ -531,41 +531,60 @@ template <size_t n> struct TomeSerializer<char[n]>
     }
 };
 
-namespace detail {
-template <class It, class T>
-It format_arrray(It it, T const *&data, std::span<const size_t> shape,
-                 size_t dim)
-{
-    if (dim == shape.size())
-    {
-        if constexpr (std::is_same_v<T, Tome>)
-            return fmt::format_to(it, "{}", *data++);
-        else if constexpr (scribe::ComplexType<T>)
-        {
-            it = fmt::format_to(it, "[{},{}]", data->real(), data->imag());
-            ++data;
-            return it;
-        }
-        else
-            return fmt::format_to(it, "{}", *data++);
-    }
-
-    *it++ = '[';
-    for (size_t i = 0; i < shape[dim]; i++)
-    {
-        if (i > 0)
-            *it++ = ',';
-        it = format_arrray(it, data, shape, dim + 1);
-    }
-    *it++ = ']';
-    return it;
-}
-} // namespace detail
-
 } // namespace scribe
 
-template <> struct fmt::formatter<scribe::Tome>
+template <> class fmt::formatter<scribe::Tome>
 {
+    // NOTE: the formatting of 'Tome' has been chosen to be essentially JSON.
+    // I.e., strings are quoted, arrays are [...], dicts are {"key":value}, etc.
+    static auto format_atomic(auto it, std::string const &value)
+    {
+        return fmt::format_to(it, "\"{}\"", value);
+    }
+    static auto format_atomic(auto it, bool value)
+    {
+        return fmt::format_to(it, "{}", value ? "true" : "false");
+    }
+    static auto format_atomic(auto it, scribe::IntegerType auto value)
+    {
+        return fmt::format_to(it, "{}", value);
+    }
+    static auto format_atomic(auto it, scribe::RealType auto value)
+    {
+        return fmt::format_to(it, "{}", value);
+    }
+    static auto format_atomic(auto it, scribe::ComplexType auto value)
+    {
+        return fmt::format_to(it, "[{},{}]", value.real(), value.imag());
+    }
+
+    template <class It, class T>
+    static It format_arrray(It it, T const *&data,
+                            std::span<const size_t> shape, size_t dim)
+    {
+        if (dim == shape.size())
+        {
+            if constexpr (std::is_same_v<T, scribe::Tome>)
+                return fmt::format_to(it, "{}", *data++);
+            else
+                return format_atomic(it, *data++);
+        }
+
+        assert(dim < shape.size());
+
+        *it++ = '[';
+        for (size_t i = 0; i < shape[dim]; i++)
+        {
+            if (i > 0)
+                *it++ = ',';
+            it = format_arrray(it, data, shape, dim + 1);
+        }
+        *it++ = ']';
+
+        return it;
+    }
+
+  public:
     constexpr auto parse(format_parse_context &ctx) { return ctx.begin(); }
 
     template <typename FormatContext>
@@ -574,20 +593,8 @@ template <> struct fmt::formatter<scribe::Tome>
     {
         auto it = ctx.out();
         tome.visit(scribe::overloaded{
-            [&](bool value) {
-                it = fmt::format_to(it, "{}", value ? "true" : "false");
-            },
-            [&](std::string const &value) {
-                it = fmt::format_to(it, "\"{}\"", value);
-            },
-            [&](scribe::IntegerType auto const &value) {
-                it = fmt::format_to(it, "{}", value);
-            },
-            [&](scribe::RealType auto const &value) {
-                it = fmt::format_to(it, "{}", value);
-            },
-            [&](scribe::ComplexType auto const &value) {
-                it = fmt::format_to(it, "[{},{}]", value.real(), value.imag());
+            [&](scribe::AtomicType auto const &value) {
+                it = format_atomic(it, value);
             },
             [&](scribe::Tome::dict_type const &value) {
                 *it++ = '{';
@@ -604,7 +611,7 @@ template <> struct fmt::formatter<scribe::Tome>
             [&]<class T>(scribe::Array<T> const &value) {
                 T const *data = value.storage().data();
                 std::vector<size_t> const &shape = value.shape();
-                it = scribe::detail::format_arrray(it, data, shape, 0);
+                it = format_arrray(it, data, shape, 0);
             }});
         return it;
     }
