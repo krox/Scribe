@@ -58,4 +58,6 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
     target_compile_features(scribe_tests PRIVATE cxx_std_20)
     target_link_libraries(scribe_tests PRIVATE Catch2::Catch2WithMain libscribe)
     target_compile_options(scribe_tests PUBLIC ${SCRIBE_WARNING_OPTIONS} -g)
+
+    add_subdirectory(tests/example_project)
 endif()

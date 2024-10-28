@@ -1,0 +1,12 @@
+{
+    "field1": "hello world",
+    "field3": [
+        1,
+        2,
+        3,
+        4
+    ],
+    "field4": {
+        "a": "some other value"
+    }
+}

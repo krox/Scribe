@@ -15,22 +15,16 @@ class Codegen
     std::map<Schema, std::string> type_cache_;
 
     // types not yet generated
-    std::vector<std::tuple<Schema, std::string>> todo_list_;
+    std::vector<
+        std::tuple<std::reference_wrapper<const DictSchema>, std::string>>
+        todo_list_;
 
-    std::string get_array_type(ArraySchema const &schema)
+    void generate_type(DictSchema const &schema, std::string_view name)
     {
-        // TODO: this is wrong. obviously.
-        std::string element_type = get_type(schema.elements);
-        return fmt::format("std::vector<{}>", element_type);
-    }
-
-    std::string get_dict_type(DictSchema const &schema, std::string_view name_)
-    {
-        std::string name = name_.empty()
-                               ? fmt::format("anon_struct_{}", anon_count++)
-                               : std::string(name_);
+        // forward declaration
         source_forward_.push_back(fmt::format("struct {};", name));
 
+        // type definition
         std::string header = fmt::format("struct {} {{\n", name);
         for (auto const &item : schema.items)
         {
@@ -40,12 +34,72 @@ class Codegen
             header += fmt::format("    {} {};\n", item_type, item.key);
         }
         header += "};\n";
-
         source_header_.push_back(header);
-        return name;
+    }
+
+    void generate_implementation(DictSchema const &schema,
+                                 std::string_view name)
+    {
+        std::string impl;
+        auto it = std::back_inserter(impl);
+        fmt::format_to(
+            it,
+            "void read_json({} & data, nlohmann::json const & json) {{\n"
+            "    using scribe::read_json;\n"
+            "    if (!json.is_object())\n"
+            "        throw scribe::ValidationError(\"expected object\");\n",
+            name);
+        for (auto const &item : schema.items)
+        {
+            if (item.optional)
+            {
+                fmt::format_to(it,
+                               "    if (auto it = json.find(\"{0}\"); it != "
+                               "json.end()) {{\n"
+                               "        data.{0}.emplace();\n"
+                               "        read_json(*data.{0}, *it);\n"
+                               "    }}\n"
+                               "    else data.{0}.reset();\n",
+                               item.key);
+                continue;
+            }
+            else
+            {
+                fmt::format_to(it,
+                               "    if (auto it = json.find(\"{}\"); it != "
+                               "json.end()) {{\n"
+                               "        read_json(data.{}, *it);\n"
+                               "    }}\n",
+                               item.key, item.key);
+            }
+        }
+        fmt::format_to(it, "}}\n");
+
+        fmt::format_to(
+            it,
+            "void read_file({}& data, std::string_view filename){{\n"
+            "auto j = "
+            "nlohmann::json::parse(std::ifstream(std::string(filename)),\n"
+            "nullptr, true, true);\n"
+            "read_json(data, j);\n"
+            "}}\n",
+            name);
+
+        source_impl_.push_back(impl);
     }
 
   public:
+    void generate_all()
+    {
+        while (!todo_list_.empty())
+        {
+            auto [schema, name] = todo_list_.back();
+            todo_list_.pop_back();
+            // generate_type(schema.get(), name);
+            generate_implementation(schema.get(), name);
+        }
+    }
+
     std::string get_type(Schema const &schema)
     {
         auto it = type_cache_.find(schema);
@@ -57,7 +111,7 @@ class Codegen
             },
             [](AnySchema const &) -> std::string { return "scribe::Tome"; },
             [](BooleanSchema const &) -> std::string { return "bool"; },
-            [](StringSchema const &) -> std::string { return "bool"; },
+            [](StringSchema const &) -> std::string { return "std::string"; },
             [](NumberSchema const &schema) -> std::string {
                 switch (schema.type)
                 {
@@ -90,17 +144,31 @@ class Codegen
                 }
             },
             [&](ArraySchema const &schema) -> std::string {
-                return get_array_type(schema);
+                std::string element_type = get_type(schema.elements);
+                return fmt::format("std::vector<{}>", element_type);
             },
-            [&, dict_name = schema.name()](DictSchema const &s) -> std::string {
-                return get_dict_type(s, dict_name);
+            [&](DictSchema const &s) -> std::string {
+                std::string name =
+                    schema.name().empty()
+                        ? fmt::format("anon_struct_{}", anon_count++)
+                        : std::string(schema.name());
+                todo_list_.push_back(std::tuple(std::cref(s), name));
+                generate_type(s, name);
+                return name;
             }});
         return type_cache_[schema] = name;
     }
 
     std::string get_source() const
     {
-        return fmt::format("#include <scribe/tome.h>\n\n{}\n{}\n",
+        if (!todo_list_.empty())
+            throw std::runtime_error("unresolved types (should call "
+                                     ".generate_all() before .get_source())");
+
+        return fmt::format("#include \"scribe/scribe.h\"\n"
+                           "#include <fstream>\n"
+                           "\n{}\n{}\n\n{}\n",
+                           fmt::join(source_forward_, "\n"),
                            fmt::join(source_header_, "\n"),
                            fmt::join(source_impl_, "\n"));
     }
@@ -112,6 +180,7 @@ std::string generate_cpp(Schema const &schema)
 {
     Codegen c;
     c.get_type(schema);
+    c.generate_all();
     return c.get_source();
 }
 } // namespace scribe
