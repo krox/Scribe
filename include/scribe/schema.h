@@ -107,6 +107,9 @@ class Schema
 
     std::string_view name() const;
     std::string_view description() const;
+
+    // compares pointer values, not the schema values
+    auto operator<=>(const Schema &other) const = default;
 };
 
 // compatibility with nlohmann::json '.get' method
