@@ -9,6 +9,8 @@ This is a somewhat-detailed list of all the features to be implemented for the f
 * [x] use `xtensor` as array backend.
 * [x] use `std::map<std::string, ...>` as backend for dicts
 * [x] compact "array-of-numbers" implementation for integer/float/complex.
+* [ ] rewrite examples in Tome docs to use top-level dicts
+* [ ] "rank" -> "ndim"
 
 ## Schema validation
 Validation has to happen both with the exicit `scribe validate` command, as well as the `scribe::read(...)` and `scribe::write(...)` functions that take a schema. Un-validated read/write only does basic consistency checks.
@@ -17,7 +19,7 @@ Validation has to happen both with the exicit `scribe validate` command, as well
 * [x] array validation: check shape and recurse to elements
 * [x] dict validation: check keys and recurse to elements
 * [ ] validation errors should indicate a (human-readable) location of the failure
-* [ ] ~~strict mode: more precise type matching, checks chunking, checks presence of checksum~~ no, validation should be strictly black and white. If chunksize is part of the schema, it has to match.
+* [ ] if chunksize is part of the schema, it has to match.
 * [x] schema documentation. See `docs/schema.md`
 * [ ] write a json-schema for the format of a schema itself.
   
@@ -28,7 +30,7 @@ Validation has to happen both with the exicit `scribe validate` command, as well
 * [x] complex
 * [x] strings
 * [x] arrays. Assume everything 1D when no schema is given.
-* [ ] dicts. Make sure to reject duplicate keys.
+* ~~[ ] dicts. Make sure to reject duplicate keys.~~ duplicate keys considered undefined
 * [ ] 'any' schema reading
 
 
@@ -46,9 +48,17 @@ Validation has to happen both with the exicit `scribe validate` command, as well
 
 Generate C++ code using the `scribe codegen` command.
 
-* [x] basic header generation
+* [x] header files
+* [ ] proper xtensor integration
+* [x] read json
+* [ ] write json
+* [ ] read hdf5
+* [ ] write hdf5
 * [ ] better automatic names for nested structs
-* [ ] implementation for `read` and `write` functions, calling out to `libscribe` functions
+
+## Python binding
+* [ ] read data given data (hdf5 file) and a schema
+* [ ] python binding of validation
   
 ## Testing infrastructure
 
@@ -64,16 +74,11 @@ Generate C++ code using the `scribe codegen` command.
 * [ ] systematic unit-tests for every explicit constraint in a schema. Should be testable on the level of `Tome`, without touching json or hdf5.
 
 
-## Some still open design decisions
-* [ ] What should `Tome::operator[]` return? The obvious `Tome &` does not quite work with compact numerical arrays. Some options:
-  * invent a new `TomeRef` (`ConstTomeRef`) class that can refer to a single number or a Tome
-  * disallow mutable `operator[]` for compact arrays and invent a new `.index<T>(...) -> T&` method for that (throwing on type mismatch)
-* [ ] Should we interpred non-existing arrays as `[]`?
-* [ ] Should we interpred non-existing dicts as `{}`?
-* [ ] Should we interpred non-existing strings as `""`?
-* [ ] What does a (multi-dimensional) array map to when generating C++ code? Some options:
-  * ~~`std::vector<std::vector< ... >>`~~
-  * ~~`Tome::array<...>`~~
-  * ~~switch between the two depending on rank~~
-  * ~~disallow multi-dimensional arrays unless a mapping was specified in the schema~~
-  * default to `xtensor`, regardless of rank
+## Some design decisions
+* [x] What should `Tome::operator[]` return? Answer: `Tome &`, even though that does not work with compact numerical arrays. Using `.get<double>(index)` is preferred anyway.
+* [x] Should we interpred non-existing data as empty dict/array/strings ? Answer: No, lets be strict for now.
+* [x] What does a (multi-dimensional) array map to when generating C++ code? Answer: always xtensor, regardless of rank. Customizability can be added later.
+  
+# large files
+* [ ] partial reads (not the same as "lazy reads")
+* [ ] performance tests: create datasets with millions of entries
