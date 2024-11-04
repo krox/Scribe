@@ -44,6 +44,15 @@ void read_impl(Tome *tome, nlohmann::json const &j, NumberSchema const &s)
         if (tome)
             *tome = Tome::number_unchecked(value, s.type);
     }
+    else if (j.is_array() && j.size() == 2 && j[0].is_number() &&
+             j[1].is_number())
+    {
+        auto real = j[0].get<double>();
+        auto imag = j[1].get<double>();
+        s.validate(real, imag);
+        if (tome)
+            *tome = std::complex<double>(real, imag);
+    }
     else
         throw ValidationError("expected number");
 }
@@ -80,8 +89,9 @@ void read_elements(std::vector<Tome> *elements, nlohmann::json const &j,
     if (shape[dim] == -1)
         shape[dim] = j.size();
     if ((int)j.size() != shape[dim])
-        throw ValidationError("expected array of size " +
-                              std::to_string(shape[dim]));
+        throw ValidationError(fmt::format(
+            "expected array of size {}, got {} (dim={}, shape=({}))",
+            shape[dim], j.size(), dim, fmt::join(shape, ",")));
 
     for (auto const &elem : j)
         read_elements(elements, elem, s, dim + 1, shape);

@@ -44,6 +44,11 @@ void read_file(auto &data, std::string_view filename)
         auto file = scribe::JsonReader(filename);
         read(data, file);
     }
+    else if (filename.ends_with(".h5") || filename.ends_with(".hdf5"))
+    {
+        auto file = scribe::Hdf5Reader(filename);
+        read(data, file);
+    }
     else
         throw ReadError("dont recognize file format for " +
                         std::string(filename));

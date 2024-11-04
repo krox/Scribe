@@ -304,6 +304,16 @@ void write_impl(HighFive::File &file, std::string const &path, Tome const &tome,
             data.push_back(v.get<double>());
         dataset.write_raw<double>(data.data());
     }
+    else if (item_schema.type == NumType::COMPLEX_FLOAT64)
+    {
+        auto shape = values.shape();
+        auto dataset = file.createDataSet<std::complex<double>>(
+            path, HighFive::DataSpace(values.shape()));
+        std::vector<std::complex<double>> data;
+        for (Tome const &v : values)
+            data.push_back(v.get<std::complex<double>>());
+        dataset.write_raw<std::complex<double>>(data.data());
+    }
     else
         throw std::runtime_error("not implemented (ArraySchema containing "
                                  "something other than float64)");

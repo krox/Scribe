@@ -7,6 +7,11 @@
 #include <stdexcept>
 
 namespace scribe {
+
+// forward declarations
+class JsonReader;
+class Hdf5Reader;
+
 struct ScribeError : std::runtime_error
 {
     using std::runtime_error::runtime_error;
