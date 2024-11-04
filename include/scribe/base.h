@@ -1,5 +1,8 @@
 #pragma once
 
+// Basic definitions that are used by most other header files in Scribe.
+// Mostly typedefs and concepts. Also error classes.
+
 #include "xtensor/xarray.hpp"
 #include <stdexcept>
 
@@ -123,5 +126,17 @@ template <class F> struct ScopeGuard
     {                                                                          \
         [&] { code; }                                                          \
     }
+
+template <class R>
+concept Reader = requires(R &r, std::string_view key, bool &b, std::string &s,
+                          int &i, double &d, std::complex<double> &c) {
+    r.push(key);
+    r.pop();
+    read(b, r, key);
+    read(s, r, key);
+    read(i, r, key);
+    read(d, r, key);
+    read(c, r, key);
+};
 
 } // namespace scribe

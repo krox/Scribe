@@ -67,13 +67,8 @@ class JsonReader
 
     friend void read(bool &value, JsonReader &file, std::string_view key)
     {
-        if (!key.empty())
-        {
-            file.push(key);
-            SCRIBE_DEFER(file.pop());
-            read(value, file, {});
-            return;
-        }
+        file.push(key);
+        SCRIBE_DEFER(file.pop());
 
         if (!file.current().is_boolean())
             throw ReadError("expected boolean at " + file.current_path());
@@ -82,13 +77,9 @@ class JsonReader
 
     friend void read(std::string &value, JsonReader &file, std::string_view key)
     {
-        if (!key.empty())
-        {
-            file.push(key);
-            SCRIBE_DEFER(file.pop());
-            read(value, file, {});
-            return;
-        }
+
+        file.push(key);
+        SCRIBE_DEFER(file.pop());
 
         if (!file.current().is_string())
             throw ReadError("expected string at " + file.current_path());
@@ -98,13 +89,8 @@ class JsonReader
     template <IntegerType T>
     friend void read(T &value, JsonReader &file, std::string_view key)
     {
-        if (!key.empty())
-        {
-            file.push(key);
-            SCRIBE_DEFER(file.pop());
-            read(value, file, {});
-            return;
-        }
+        file.push(key);
+        SCRIBE_DEFER(file.pop());
 
         if (!file.current().is_number_integer())
             throw ReadError("expected integer at " + file.current_path());
@@ -114,13 +100,9 @@ class JsonReader
     template <RealType T>
     friend void read(T &value, JsonReader &file, std::string_view key)
     {
-        if (!key.empty())
-        {
-            file.push(key);
-            SCRIBE_DEFER(file.pop());
-            read(value, file, {});
-            return;
-        }
+
+        file.push(key);
+        SCRIBE_DEFER(file.pop());
 
         if (!file.current().is_number())
             throw ReadError("expected floating point number at " +
@@ -131,13 +113,8 @@ class JsonReader
     friend void read(ComplexType auto &value, JsonReader &file,
                      std::string_view key)
     {
-        if (!key.empty())
-        {
-            file.push(key);
-            SCRIBE_DEFER(file.pop());
-            read(value, file, {});
-            return;
-        }
+        file.push(key);
+        SCRIBE_DEFER(file.pop());
 
         if (!file.current().is_array() || file.current().size() != 2 ||
             !file.current()[0].is_number() || !file.current()[1].is_number())
@@ -152,14 +129,11 @@ class JsonReader
     friend void read(std::optional<T> &value, JsonReader &reader,
                      std::string_view key)
     {
-        if (key.empty())
-        {
-            if (!value)
-                value.emplace();
-            read(*value, reader, {});
-        }
-        else if (auto it = reader.current().find(key);
-                 it != reader.current().end())
+        assert(!key.empty());
+        if (!reader.current().is_object())
+            throw ReadError("expected object at " + reader.current_path());
+
+        if (reader.current().contains(key))
         {
             if (!value)
                 value.emplace();
@@ -169,30 +143,18 @@ class JsonReader
             value.reset();
     }
 
-    template <class T>
-    friend void read(std::vector<T> &value, JsonReader &reader,
+    template <AtomicType T>
+    friend void read(std::vector<T> &value, JsonReader &file,
                      std::string_view key)
-
     {
-        if (!key.empty())
-        {
-            reader.push(key);
-            SCRIBE_DEFER(reader.pop());
-            return read(value, reader, {});
-        }
-    }
-};
+        file.push(key);
+        SCRIBE_DEFER(file.pop());
 
-template <class R>
-concept Reader = requires(R &r, std::string_view key, bool &b, std::string &s,
-                          int &i, double &d, std::complex<double> &c) {
-    r.push(key);
-    r.pop();
-    read(b, r, key);
-    read(s, r, key);
-    read(i, r, key);
-    read(d, r, key);
-    read(c, r, key);
+        if (!file.current().is_array())
+            throw ReadError("expected array at " + file.current_path());
+
+        file.current().get_to(value);
+    }
 };
 
 static_assert(Reader<JsonReader>);
