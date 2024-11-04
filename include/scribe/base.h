@@ -132,11 +132,11 @@ concept Reader = requires(R &r, std::string_view key, bool &b, std::string &s,
                           int &i, double &d, std::complex<double> &c) {
     r.push(key);
     r.pop();
-    read(b, r, key);
-    read(s, r, key);
-    read(i, r, key);
-    read(d, r, key);
-    read(c, r, key);
+    r.read(b, key);
+    r.read(s, key);
+    r.read(i, key);
+    r.read(d, key);
+    r.read(c, key);
 };
 
 } // namespace scribe

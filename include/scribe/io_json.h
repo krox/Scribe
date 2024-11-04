@@ -119,118 +119,85 @@ class JsonReader
         stack_.pop_back();
     }
 
-    friend void read(bool &value, JsonReader &file, std::string_view key)
+    void read(bool &value, std::string_view key)
     {
-        file.push(key);
-        SCRIBE_DEFER(file.pop());
+        push(key);
+        SCRIBE_DEFER(pop());
 
-        if (!file.current().is_boolean())
-            throw ReadError("expected boolean at " + file.current_path());
-        value = file.current().get<bool>();
+        if (!current().is_boolean())
+            throw ReadError("expected boolean at " + current_path());
+        value = current().get<bool>();
     }
 
-    friend void read(std::string &value, JsonReader &file, std::string_view key)
+    void read(std::string &value, std::string_view key)
     {
-        file.push(key);
-        SCRIBE_DEFER(file.pop());
+        push(key);
+        SCRIBE_DEFER(pop());
 
-        if (!file.current().is_string())
-            throw ReadError("expected string at " + file.current_path());
-        value = file.current().get<std::string>();
+        if (!current().is_string())
+            throw ReadError("expected string at " + current_path());
+        value = current().get<std::string>();
     }
 
-    template <IntegerType T>
-    friend void read(T &value, JsonReader &file, std::string_view key)
+    template <IntegerType T> void read(T &value, std::string_view key)
     {
-        file.push(key);
-        SCRIBE_DEFER(file.pop());
+        push(key);
+        SCRIBE_DEFER(pop());
 
-        if (!file.current().is_number_integer())
-            throw ReadError("expected integer at " + file.current_path());
-        value = file.current().get<T>();
+        if (!current().is_number_integer())
+            throw ReadError("expected integer at " + current_path());
+        value = current().get<T>();
     }
 
-    template <RealType T>
-    friend void read(T &value, JsonReader &file, std::string_view key)
+    template <RealType T> void read(T &value, std::string_view key)
     {
-        file.push(key);
-        SCRIBE_DEFER(file.pop());
+        push(key);
+        SCRIBE_DEFER(pop());
 
-        if (!file.current().is_number())
+        if (!current().is_number())
             throw ReadError("expected floating point number at " +
-                            file.current_path());
-        value = file.current().get<T>();
+                            current_path());
+        value = current().get<T>();
     }
 
-    friend void read(ComplexType auto &value, JsonReader &file,
-                     std::string_view key)
+    void read(ComplexType auto &value, std::string_view key)
     {
-        file.push(key);
-        SCRIBE_DEFER(file.pop());
+        push(key);
+        SCRIBE_DEFER(pop());
 
-        if (!file.current().is_array() || file.current().size() != 2 ||
-            !file.current()[0].is_number() || !file.current()[1].is_number())
-            throw ReadError("expected complex number at " +
-                            file.current_path());
-        auto real = file.current()[0].get<double>();
-        auto imag = file.current()[1].get<double>();
+        if (!current().is_array() || current().size() != 2 ||
+            !current()[0].is_number() || !current()[1].is_number())
+            throw ReadError("expected complex number at " + current_path());
+        auto real = current()[0].get<double>();
+        auto imag = current()[1].get<double>();
         value = {real, imag};
     }
 
-    template <class T>
-    friend void read(std::optional<T> &value, JsonReader &reader,
-                     std::string_view key)
+    template <class T> void read(std::optional<T> &value, std::string_view key)
     {
         assert(!key.empty());
-        if (!reader.current().is_object())
-            throw ReadError("expected object at " + reader.current_path());
+        if (!current().is_object())
+            throw ReadError("expected object at " + current_path());
 
-        if (reader.current().contains(key))
+        if (current().contains(key))
         {
             if (!value)
                 value.emplace();
-            read(*value, reader, key);
+            read(*value, key);
         }
         else
             value.reset();
     }
 
-    template <NumberType T>
-    friend void read(Array<T> &value, JsonReader &file, std::string_view key)
+    template <NumberType T> void read(Array<T> &value, std::string_view key)
     {
-        file.push(key);
-        SCRIBE_DEFER(file.pop());
+        push(key);
+        SCRIBE_DEFER(pop());
 
-        internal::read_json_array(value, file.current());
+        internal::read_json_array(value, current());
     }
 };
 
 static_assert(Reader<JsonReader>);
-
-inline void read(auto &data, Reader auto &reader, std::string_view key)
-{
-    if (key.empty())
-    {
-        read(data, reader);
-    }
-    else
-    {
-        reader.push(key);
-        SCRIBE_DEFER(reader.pop());
-        read(data, reader);
-    }
-}
-
-void read_file(auto &data, std::string_view filename)
-{
-    if (filename.ends_with(".json"))
-    {
-        auto file = scribe::JsonReader(filename);
-        read(data, file);
-    }
-    else
-        throw ReadError("dont recognize file format for " +
-                        std::string(filename));
-}
 
 } // namespace scribe
