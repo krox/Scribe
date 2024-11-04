@@ -18,6 +18,60 @@ void write_json(nlohmann::json &, Tome const &, Schema const &);
 
 } // namespace internal
 
+namespace internal {
+std::vector<size_t> guess_array_shape(nlohmann::json const &json);
+
+template <NumberType T>
+void read_json_elements(typename Array<T>::iterator &it,
+                        nlohmann::json const &j, std::span<const size_t> shape,
+                        size_t dim)
+{
+    if (dim == shape.size())
+    {
+        if constexpr (ComplexType<T>)
+        {
+            if (!j.is_array() || j.size() != 2)
+                throw ReadError("expected complex number");
+            auto real = j[0].get<typename T::value_type>();
+            auto imag = j[1].get<typename T::value_type>();
+            *it++ = {real, imag};
+            return;
+        }
+        else
+        {
+            *it++ = j.get<T>();
+        }
+        return;
+    }
+
+    if (!j.is_array() || j.size() != shape[dim])
+        throw ReadError("inconsistent array shape");
+
+    for (nlohmann::json const &elem : j)
+        read_json_elements<T>(it, elem, shape, dim + 1);
+}
+
+template <NumberType T>
+void read_json_array(Array<T> &value, nlohmann::json const &json)
+{
+    auto shape = internal::guess_array_shape(json);
+    if constexpr (ComplexType<T>)
+    {
+        if (shape.empty() || shape.back() != 2)
+            throw ReadError("expected complex array");
+        shape.pop_back();
+    }
+
+    // Disallow dimension-zero arrays.
+    if (shape.size() == 0)
+        throw ReadError("expected array");
+
+    value.resize(shape);
+    auto it = value.begin();
+    read_json_elements<T>(it, json, shape, 0);
+}
+} // namespace internal
+
 class JsonReader
 {
     using json = nlohmann::json;
@@ -77,7 +131,6 @@ class JsonReader
 
     friend void read(std::string &value, JsonReader &file, std::string_view key)
     {
-
         file.push(key);
         SCRIBE_DEFER(file.pop());
 
@@ -100,7 +153,6 @@ class JsonReader
     template <RealType T>
     friend void read(T &value, JsonReader &file, std::string_view key)
     {
-
         file.push(key);
         SCRIBE_DEFER(file.pop());
 
@@ -143,17 +195,13 @@ class JsonReader
             value.reset();
     }
 
-    template <AtomicType T>
-    friend void read(std::vector<T> &value, JsonReader &file,
-                     std::string_view key)
+    template <NumberType T>
+    friend void read(Array<T> &value, JsonReader &file, std::string_view key)
     {
         file.push(key);
         SCRIBE_DEFER(file.pop());
 
-        if (!file.current().is_array())
-            throw ReadError("expected array at " + file.current_path());
-
-        file.current().get_to(value);
+        internal::read_json_array(value, file.current());
     }
 };
 

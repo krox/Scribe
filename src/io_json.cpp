@@ -262,3 +262,15 @@ void scribe::internal::write_json(nlohmann::json &j, Tome const &tome,
 {
     s.visit([&](auto const &s) { write_impl(j, tome, s); });
 }
+
+std::vector<size_t> internal::guess_array_shape(nlohmann::json const &json)
+{
+    std::vector<size_t> shape;
+    for (nlohmann::json const *j = &json; j->is_array(); j = &(*j)[0])
+    {
+        shape.push_back(j->size());
+        if (shape.back() == 0)
+            break;
+    }
+    return shape;
+}

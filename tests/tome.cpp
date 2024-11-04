@@ -265,7 +265,7 @@ template <> struct scribe::TomeSerializer<Point>
 
 TEST_CASE("custom types to/from tome", "[tome]")
 {
-    auto p = Point(1, 2);
+    auto p = Point{1, 2};
     Tome tome = p;
     REQUIRE(tome.is_dict());
     auto p2 = tome.get<Point>();

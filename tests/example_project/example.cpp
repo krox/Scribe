@@ -11,14 +11,23 @@ int main(int argc, char **argv)
     }
     mystruct data;
     scribe::read_file(data, argv[1]);
+
     std::cout << "field1: " << data.field1 << "\n";
+
     if (data.field2)
         std::cout << "field2: " << *data.field2 << "\n";
     else
         std::cout << "field2: null\n";
+
     std::cout << "field3: ";
     for (auto &elem : data.field3)
         std::cout << elem << " ";
     std::cout << "\n";
+
     std::cout << "field4.a: " << data.field4.a << "\n";
+
+    std::cout << "field5: ";
+    for (auto &elem : data.field5)
+        std::cout << elem << " ";
+    std::cout << "\n";
 }

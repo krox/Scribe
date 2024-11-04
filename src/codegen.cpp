@@ -80,7 +80,7 @@ class Codegen
             },
             [&](ArraySchema const &schema) -> std::string {
                 std::string element_type = get_type(schema.elements);
-                return fmt::format("std::vector<{}>", element_type);
+                return fmt::format("scribe::Array<{}>", element_type);
             },
             [&](DictSchema const &s) -> std::string {
                 std::string name =
