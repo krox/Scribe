@@ -108,4 +108,20 @@ concept CompoundType =
 template <class T>
 concept TomeType = AtomicType<T> || CompoundType<T>;
 
+// simple scope guard
+template <class F> struct ScopeGuard
+{
+    F f;
+    ScopeGuard(F f) : f(f) {}
+    ~ScopeGuard() { f(); }
+    ScopeGuard(ScopeGuard const &) = delete;
+    ScopeGuard &operator=(ScopeGuard const &) = delete;
+};
+
+#define SCRIBE_DEFER(code)                                                     \
+    scribe::ScopeGuard _deferred_##__LINE__                                    \
+    {                                                                          \
+        [&] { code; }                                                          \
+    }
+
 } // namespace scribe

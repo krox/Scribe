@@ -10,7 +10,7 @@ int main(int argc, char **argv)
         return 1;
     }
     mystruct data;
-    read_file(data, argv[1]);
+    scribe::read_file(data, argv[1]);
     std::cout << "field1: " << data.field1 << "\n";
     if (data.field2)
         std::cout << "field2: " << *data.field2 << "\n";

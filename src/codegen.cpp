@@ -19,74 +19,9 @@ class Codegen
         std::tuple<std::reference_wrapper<const DictSchema>, std::string>>
         todo_list_;
 
-    void generate_type(DictSchema const &schema, std::string_view name)
-    {
-        // forward declaration
-        source_forward_.push_back(fmt::format("struct {};", name));
-
-        // type definition
-        std::string header = fmt::format("struct {} {{\n", name);
-        for (auto const &item : schema.items)
-        {
-            auto item_type = get_type(item.schema);
-            if (item.optional)
-                item_type = fmt::format("std::optional<{}>", item_type);
-            header += fmt::format("    {} {};\n", item_type, item.key);
-        }
-        header += "};\n";
-        source_header_.push_back(header);
-    }
-
+    void generate_type(DictSchema const &schema, std::string_view name);
     void generate_implementation(DictSchema const &schema,
-                                 std::string_view name)
-    {
-        std::string impl;
-        auto it = std::back_inserter(impl);
-        fmt::format_to(
-            it,
-            "void read_json({} & data, nlohmann::json const & json) {{\n"
-            "    using scribe::read_json;\n"
-            "    if (!json.is_object())\n"
-            "        throw scribe::ValidationError(\"expected object\");\n",
-            name);
-        for (auto const &item : schema.items)
-        {
-            if (item.optional)
-            {
-                fmt::format_to(it,
-                               "    if (auto it = json.find(\"{0}\"); it != "
-                               "json.end()) {{\n"
-                               "        data.{0}.emplace();\n"
-                               "        read_json(*data.{0}, *it);\n"
-                               "    }}\n"
-                               "    else data.{0}.reset();\n",
-                               item.key);
-                continue;
-            }
-            else
-            {
-                fmt::format_to(it,
-                               "    if (auto it = json.find(\"{}\"); it != "
-                               "json.end()) {{\n"
-                               "        read_json(data.{}, *it);\n"
-                               "    }}\n",
-                               item.key, item.key);
-            }
-        }
-        fmt::format_to(it, "}}\n");
-
-        fmt::format_to(
-            it,
-            "void read_file({}& data, std::string_view filename){{\n"
-            "auto j = "
-            "nlohmann::json::parse(std::ifstream(std::string(filename)),\n"
-            "nullptr, true, true);\n"
-            "read_json(data, j);\n"
-            "}}\n",
-            name);
-
-        source_impl_.push_back(impl);
-    }
+                                 std::string_view name);
 
   public:
     void generate_all()
@@ -166,13 +101,47 @@ class Codegen
                                      ".generate_all() before .get_source())");
 
         return fmt::format("#include \"scribe/scribe.h\"\n"
-                           "#include <fstream>\n"
-                           "\n{}\n{}\n\n{}\n",
+                           "\n{}\n\n{}\n\n{}\n",
                            fmt::join(source_forward_, "\n"),
                            fmt::join(source_header_, "\n"),
                            fmt::join(source_impl_, "\n"));
     }
 };
+
+void Codegen::generate_type(DictSchema const &schema, std::string_view name)
+{
+    // forward declaration
+    source_forward_.push_back(fmt::format("struct {};", name));
+
+    // type definition
+    std::string header = fmt::format("struct {} {{\n", name);
+    for (auto const &item : schema.items)
+    {
+        auto item_type = get_type(item.schema);
+        if (item.optional)
+            item_type = fmt::format("std::optional<{}>", item_type);
+        header += fmt::format("    {} {};\n", item_type, item.key);
+    }
+    header += "};\n";
+    source_header_.push_back(header);
+}
+void Codegen::generate_implementation(DictSchema const &schema,
+                                      std::string_view name)
+{
+    std::string impl;
+    auto it = std::back_inserter(impl);
+    fmt::format_to(it,
+                   "void read({} & data, scribe::Reader auto& reader) {{\n"
+                   "    using scribe::read;\n",
+                   name);
+    for (auto const &item : schema.items)
+    {
+        fmt::format_to(it, "    read(data.{0}, reader, \"{0}\");\n", item.key);
+    }
+    fmt::format_to(it, "}}\n");
+
+    source_impl_.push_back(impl);
+}
 
 } // namespace
 
