@@ -188,6 +188,17 @@ class SchemaImpl
                  StringSchema, ArraySchema, DictSchema>
         schema_;
     SchemaMetadata metadata_ = {}; // all optional
+
+    // note: some compilers (apple clang) dont like POD initialization inside a
+    // make_shared
+    SchemaImpl() = default;
+    SchemaImpl(NoneSchema s) : schema_(std::move(s)) {}
+    SchemaImpl(AnySchema s) : schema_(std::move(s)) {}
+    SchemaImpl(BooleanSchema s) : schema_(std::move(s)) {}
+    SchemaImpl(NumberSchema s) : schema_(std::move(s)) {}
+    SchemaImpl(StringSchema s) : schema_(std::move(s)) {}
+    SchemaImpl(ArraySchema s) : schema_(std::move(s)) {}
+    SchemaImpl(DictSchema s) : schema_(std::move(s)) {}
 };
 
 template <class R, class Visitor> R Schema::visit(Visitor &&vis) const
