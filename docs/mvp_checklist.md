@@ -49,10 +49,10 @@ Validation has to happen both with the exicit `scribe validate` command, as well
 Generate C++ code using the `scribe codegen` command.
 
 * [x] header files
-* [ ] proper xtensor integration
+* [x] proper xtensor integration
 * [x] read json
 * [ ] write json
-* [ ] read hdf5
+* [x] read hdf5
 * [ ] write hdf5
 * [ ] better automatic names for nested structs
 
